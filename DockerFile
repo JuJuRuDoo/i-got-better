@@ -1,0 +1,15 @@
+FROM node:22
+
+RUN apt-get update && \
+    apt-get install -y openjdk-21-jre-headless
+
+WORKDIR /app
+
+COPY . .
+
+RUN corepack enable
+RUN corepack prepare pnpm@10.26.1 --activate
+RUN pnpm install --frozen-lockfile
+RUN pnpm run build:railway
+
+CMD ["node", "artifacts/api-server/dist/index.mjs"]
