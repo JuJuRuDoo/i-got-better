@@ -1,11 +1,17 @@
 [phases.setup]
-nixPkgs = ["nodejs_22", "jdk21_headless"]
+nixPkgs = ["nodejs_22", "jdk21"]
 
 [phases.install]
-cmds = ["npm install -g pnpm@10.26.1", "pnpm install --frozen-lockfile"]
+cmds = [
+  "npm install -g pnpm@10.26.1",
+  "pnpm install --frozen-lockfile"
+]
 
 [phases.build]
-cmds = ["pnpm run build:railway"]
+cmds = [
+  "java -version",
+  "pnpm run build:railway"
+]
 
 [start]
-cmd = "node artifacts/api-server/dist/index.mjs"
+cmd = "java -version && node artifacts/api-server/dist/index.mjs"
