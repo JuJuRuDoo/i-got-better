@@ -115,23 +115,26 @@ export async function startServer(serverId: number, cfg: ServerConfig): Promise<
     "--nogui",
   ];
 
+  const javaCmd = process.env.JAVA_HOME
+    ? `"${process.env.JAVA_HOME}/bin/java"`
+    : "java";
+  const shellCmd = `${javaCmd} ${javaArgs.map((a) => `"${a}"`).join(" ")}`;
+
   let proc: ChildProcess;
   try {
-    proc = spawn("java", javaArgs, { cwd: dir, stdio: ["pipe", "pipe", "pipe"] });
+    proc = spawn(shellCmd, [], {
+      cwd: dir,
+      stdio: ["pipe", "pipe", "pipe"],
+      shell: true,
+    });
   } catch (err) {
     const msg = `[ERROR] Failed to spawn java: ${String(err)}. Is Java installed?`;
-    const fallback: ProcessState = {
-      proc: null as unknown as ChildProcess,
-      logs: [msg],
-      startedAt: new Date(),
-    };
     stoppedLogs.set(serverId, [msg]);
     logEmitter.emit("log", serverId, msg);
     await db
       .update(serversTable)
       .set({ status: "stopped", port: null, updatedAt: new Date() })
       .where(eq(serversTable.id, serverId));
-    void fallback;
     return;
   }
 
@@ -169,9 +172,21 @@ export async function startServer(serverId: number, cfg: ServerConfig): Promise<
       .where(eq(serversTable.id, serverId));
   });
 
-  proc.on("error", (err) => {
-    const msg = `[Process error: ${String(err)}]`;
+  proc.on("error", (err: NodeJS.ErrnoException) => {
+    const isNotFound = err.code === "ENOENT" || err.code === "EACCES";
+    const msg = isNotFound
+      ? `[ERROR] Java not found — make sure Java is installed and in PATH (${String(err)})`
+      : `[Process error: ${String(err)}]`;
     pushLog(serverId, state, msg);
+    if (isNotFound) {
+      processes.delete(serverId);
+      stoppedLogs.set(serverId, [...state.logs]);
+      void persistLogs(serverId, state.logs);
+      void db
+        .update(serversTable)
+        .set({ status: "stopped", port: null, onlinePlayers: 0, updatedAt: new Date() })
+        .where(eq(serversTable.id, serverId));
+    }
   });
 }
 
