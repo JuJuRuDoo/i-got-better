@@ -1,0 +1,1 @@
+{"version":3,"file":"minecraftVersion.d.ts","sourceRoot":"","sources":["../../../src/generated/types/minecraftVersion.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AACH,OAAO,KAAK,EAAE,oBAAoB,EAAE,MAAM,wBAAwB,CAAC;AAEnE,MAAM,WAAW,gBAAgB;IAC/B,EAAE,EAAE,MAAM,CAAC;IACX,IAAI,EAAE,oBAAoB,CAAC;IAC3B,WAAW,EAAE,MAAM,CAAC;CACrB"}
