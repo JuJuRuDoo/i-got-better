@@ -570,8 +570,9 @@ export declare const ListServerModsResponseItem: zod.ZodObject<{
     modId: zod.ZodString;
     modName: zod.ZodString;
     modVersion: zod.ZodString;
-    source: zod.ZodEnum<["curseforge", "modrinth", "upload"]>;
+    source: zod.ZodEnum<["curseforge", "modrinth", "upload", "hangar"]>;
     iconUrl: zod.ZodNullable<zod.ZodString>;
+    category: zod.ZodEnum<["mod", "plugin"]>;
     installedAt: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
     id: number;
@@ -579,8 +580,9 @@ export declare const ListServerModsResponseItem: zod.ZodObject<{
     modId: string;
     modName: string;
     modVersion: string;
-    source: "curseforge" | "modrinth" | "upload";
+    source: "curseforge" | "modrinth" | "upload" | "hangar";
     iconUrl: string | null;
+    category: "mod" | "plugin";
     installedAt: string;
 }, {
     id: number;
@@ -588,8 +590,9 @@ export declare const ListServerModsResponseItem: zod.ZodObject<{
     modId: string;
     modName: string;
     modVersion: string;
-    source: "curseforge" | "modrinth" | "upload";
+    source: "curseforge" | "modrinth" | "upload" | "hangar";
     iconUrl: string | null;
+    category: "mod" | "plugin";
     installedAt: string;
 }>;
 export declare const ListServerModsResponse: zod.ZodArray<zod.ZodObject<{
@@ -598,8 +601,9 @@ export declare const ListServerModsResponse: zod.ZodArray<zod.ZodObject<{
     modId: zod.ZodString;
     modName: zod.ZodString;
     modVersion: zod.ZodString;
-    source: zod.ZodEnum<["curseforge", "modrinth", "upload"]>;
+    source: zod.ZodEnum<["curseforge", "modrinth", "upload", "hangar"]>;
     iconUrl: zod.ZodNullable<zod.ZodString>;
+    category: zod.ZodEnum<["mod", "plugin"]>;
     installedAt: zod.ZodString;
 }, "strip", zod.ZodTypeAny, {
     id: number;
@@ -607,8 +611,9 @@ export declare const ListServerModsResponse: zod.ZodArray<zod.ZodObject<{
     modId: string;
     modName: string;
     modVersion: string;
-    source: "curseforge" | "modrinth" | "upload";
+    source: "curseforge" | "modrinth" | "upload" | "hangar";
     iconUrl: string | null;
+    category: "mod" | "plugin";
     installedAt: string;
 }, {
     id: number;
@@ -616,8 +621,9 @@ export declare const ListServerModsResponse: zod.ZodArray<zod.ZodObject<{
     modId: string;
     modName: string;
     modVersion: string;
-    source: "curseforge" | "modrinth" | "upload";
+    source: "curseforge" | "modrinth" | "upload" | "hangar";
     iconUrl: string | null;
+    category: "mod" | "plugin";
     installedAt: string;
 }>, "many">;
 /**
@@ -634,20 +640,23 @@ export declare const InstallModBody: zod.ZodObject<{
     modId: zod.ZodString;
     modName: zod.ZodString;
     modVersion: zod.ZodString;
-    source: zod.ZodEnum<["curseforge", "modrinth", "upload"]>;
+    source: zod.ZodEnum<["curseforge", "modrinth", "upload", "hangar"]>;
     iconUrl: zod.ZodOptional<zod.ZodString>;
+    category: zod.ZodOptional<zod.ZodEnum<["mod", "plugin"]>>;
 }, "strip", zod.ZodTypeAny, {
     modId: string;
     modName: string;
     modVersion: string;
-    source: "curseforge" | "modrinth" | "upload";
+    source: "curseforge" | "modrinth" | "upload" | "hangar";
     iconUrl?: string | undefined;
+    category?: "mod" | "plugin" | undefined;
 }, {
     modId: string;
     modName: string;
     modVersion: string;
-    source: "curseforge" | "modrinth" | "upload";
+    source: "curseforge" | "modrinth" | "upload" | "hangar";
     iconUrl?: string | undefined;
+    category?: "mod" | "plugin" | undefined;
 }>;
 /**
  * @summary Remove a mod from a server
@@ -682,6 +691,188 @@ export declare const GetServersSummaryResponse: zod.ZodObject<{
     popularVersion: string | null;
 }>;
 /**
+ * @summary Search plugins from Modrinth and Hangar
+ */
+export declare const searchPluginsQueryQueryDefault = "optimization";
+export declare const searchPluginsQuerySourceDefault = "modrinth";
+export declare const searchPluginsQueryLimitDefault = 20;
+export declare const SearchPluginsQueryParams: zod.ZodObject<{
+    query: zod.ZodDefault<zod.ZodString>;
+    source: zod.ZodDefault<zod.ZodEnum<["modrinth", "hangar", "all"]>>;
+    limit: zod.ZodDefault<zod.ZodNumber>;
+}, "strip", zod.ZodTypeAny, {
+    source: "modrinth" | "hangar" | "all";
+    query: string;
+    limit: number;
+}, {
+    source?: "modrinth" | "hangar" | "all" | undefined;
+    query?: string | undefined;
+    limit?: number | undefined;
+}>;
+export declare const SearchPluginsResponseItem: zod.ZodObject<{
+    id: zod.ZodString;
+    name: zod.ZodString;
+    description: zod.ZodString;
+    author: zod.ZodString;
+    iconUrl: zod.ZodNullable<zod.ZodString>;
+    downloadCount: zod.ZodNumber;
+    source: zod.ZodEnum<["modrinth", "hangar"]>;
+    latestVersion: zod.ZodNullable<zod.ZodString>;
+    loaders: zod.ZodArray<zod.ZodString, "many">;
+    gameVersions: zod.ZodArray<zod.ZodString, "many">;
+    categories: zod.ZodArray<zod.ZodString, "many">;
+    websiteUrl: zod.ZodNullable<zod.ZodString>;
+}, "strip", zod.ZodTypeAny, {
+    id: string;
+    name: string;
+    description: string;
+    source: "modrinth" | "hangar";
+    iconUrl: string | null;
+    author: string;
+    downloadCount: number;
+    latestVersion: string | null;
+    loaders: string[];
+    gameVersions: string[];
+    categories: string[];
+    websiteUrl: string | null;
+}, {
+    id: string;
+    name: string;
+    description: string;
+    source: "modrinth" | "hangar";
+    iconUrl: string | null;
+    author: string;
+    downloadCount: number;
+    latestVersion: string | null;
+    loaders: string[];
+    gameVersions: string[];
+    categories: string[];
+    websiteUrl: string | null;
+}>;
+export declare const SearchPluginsResponse: zod.ZodArray<zod.ZodObject<{
+    id: zod.ZodString;
+    name: zod.ZodString;
+    description: zod.ZodString;
+    author: zod.ZodString;
+    iconUrl: zod.ZodNullable<zod.ZodString>;
+    downloadCount: zod.ZodNumber;
+    source: zod.ZodEnum<["modrinth", "hangar"]>;
+    latestVersion: zod.ZodNullable<zod.ZodString>;
+    loaders: zod.ZodArray<zod.ZodString, "many">;
+    gameVersions: zod.ZodArray<zod.ZodString, "many">;
+    categories: zod.ZodArray<zod.ZodString, "many">;
+    websiteUrl: zod.ZodNullable<zod.ZodString>;
+}, "strip", zod.ZodTypeAny, {
+    id: string;
+    name: string;
+    description: string;
+    source: "modrinth" | "hangar";
+    iconUrl: string | null;
+    author: string;
+    downloadCount: number;
+    latestVersion: string | null;
+    loaders: string[];
+    gameVersions: string[];
+    categories: string[];
+    websiteUrl: string | null;
+}, {
+    id: string;
+    name: string;
+    description: string;
+    source: "modrinth" | "hangar";
+    iconUrl: string | null;
+    author: string;
+    downloadCount: number;
+    latestVersion: string | null;
+    loaders: string[];
+    gameVersions: string[];
+    categories: string[];
+    websiteUrl: string | null;
+}>, "many">;
+/**
+ * @summary Get featured plugins from Modrinth and Hangar
+ */
+export declare const GetFeaturedPluginsResponseItem: zod.ZodObject<{
+    id: zod.ZodString;
+    name: zod.ZodString;
+    description: zod.ZodString;
+    author: zod.ZodString;
+    iconUrl: zod.ZodNullable<zod.ZodString>;
+    downloadCount: zod.ZodNumber;
+    source: zod.ZodEnum<["modrinth", "hangar"]>;
+    latestVersion: zod.ZodNullable<zod.ZodString>;
+    loaders: zod.ZodArray<zod.ZodString, "many">;
+    gameVersions: zod.ZodArray<zod.ZodString, "many">;
+    categories: zod.ZodArray<zod.ZodString, "many">;
+    websiteUrl: zod.ZodNullable<zod.ZodString>;
+}, "strip", zod.ZodTypeAny, {
+    id: string;
+    name: string;
+    description: string;
+    source: "modrinth" | "hangar";
+    iconUrl: string | null;
+    author: string;
+    downloadCount: number;
+    latestVersion: string | null;
+    loaders: string[];
+    gameVersions: string[];
+    categories: string[];
+    websiteUrl: string | null;
+}, {
+    id: string;
+    name: string;
+    description: string;
+    source: "modrinth" | "hangar";
+    iconUrl: string | null;
+    author: string;
+    downloadCount: number;
+    latestVersion: string | null;
+    loaders: string[];
+    gameVersions: string[];
+    categories: string[];
+    websiteUrl: string | null;
+}>;
+export declare const GetFeaturedPluginsResponse: zod.ZodArray<zod.ZodObject<{
+    id: zod.ZodString;
+    name: zod.ZodString;
+    description: zod.ZodString;
+    author: zod.ZodString;
+    iconUrl: zod.ZodNullable<zod.ZodString>;
+    downloadCount: zod.ZodNumber;
+    source: zod.ZodEnum<["modrinth", "hangar"]>;
+    latestVersion: zod.ZodNullable<zod.ZodString>;
+    loaders: zod.ZodArray<zod.ZodString, "many">;
+    gameVersions: zod.ZodArray<zod.ZodString, "many">;
+    categories: zod.ZodArray<zod.ZodString, "many">;
+    websiteUrl: zod.ZodNullable<zod.ZodString>;
+}, "strip", zod.ZodTypeAny, {
+    id: string;
+    name: string;
+    description: string;
+    source: "modrinth" | "hangar";
+    iconUrl: string | null;
+    author: string;
+    downloadCount: number;
+    latestVersion: string | null;
+    loaders: string[];
+    gameVersions: string[];
+    categories: string[];
+    websiteUrl: string | null;
+}, {
+    id: string;
+    name: string;
+    description: string;
+    source: "modrinth" | "hangar";
+    iconUrl: string | null;
+    author: string;
+    downloadCount: number;
+    latestVersion: string | null;
+    loaders: string[];
+    gameVersions: string[];
+    categories: string[];
+    websiteUrl: string | null;
+}>, "many">;
+/**
  * @summary Search mods from CurseForge and Modrinth
  */
 export declare const searchModsQuerySourceDefault = "all";
@@ -706,8 +897,8 @@ export declare const SearchModsQueryParams: zod.ZodObject<{
     sort?: "relevance" | "downloads" | "updated" | undefined;
     gameVersion?: string | undefined;
     source?: "curseforge" | "modrinth" | "all" | undefined;
-    loader?: "vanilla" | "forge" | "fabric" | "neoforge" | "quilt" | undefined;
     limit?: number | undefined;
+    loader?: "vanilla" | "forge" | "fabric" | "neoforge" | "quilt" | undefined;
 }>;
 export declare const SearchModsResponseItem: zod.ZodObject<{
     id: zod.ZodString;

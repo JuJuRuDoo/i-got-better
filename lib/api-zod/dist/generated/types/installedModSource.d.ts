@@ -10,5 +10,6 @@ export declare const InstalledModSource: {
     readonly curseforge: "curseforge";
     readonly modrinth: "modrinth";
     readonly upload: "upload";
+    readonly hangar: "hangar";
 };
 //# sourceMappingURL=installedModSource.d.ts.map
