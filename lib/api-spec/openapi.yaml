@@ -1,0 +1,900 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Minecraft Server Hosting API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: servers
+    description: Minecraft server management
+  - name: mods
+    description: Mod search and management
+  - name: versions
+    description: Minecraft version queries
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /servers:
+    get:
+      operationId: listServers
+      tags: [servers]
+      summary: List all Minecraft servers
+      responses:
+        "200":
+          description: List of servers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MinecraftServer"
+    post:
+      operationId: createServer
+      tags: [servers]
+      summary: Create a new Minecraft server
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServerInput"
+      responses:
+        "201":
+          description: Server created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MinecraftServer"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Slug already taken
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /servers/{id}:
+    get:
+      operationId: getServer
+      tags: [servers]
+      summary: Get a single server by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Server details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MinecraftServer"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateServer
+      tags: [servers]
+      summary: Update server settings
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServerUpdate"
+      responses:
+        "200":
+          description: Updated server
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MinecraftServer"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteServer
+      tags: [servers]
+      summary: Delete a server
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /servers/by-slug/{slug}:
+    get:
+      operationId: getServerBySlug
+      tags: [servers]
+      summary: Get a server by its custom URL slug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Server details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MinecraftServer"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /servers/{id}/start:
+    post:
+      operationId: startServer
+      tags: [servers]
+      summary: Start a Minecraft server
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Server started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MinecraftServer"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /servers/{id}/stop:
+    post:
+      operationId: stopServer
+      tags: [servers]
+      summary: Stop a running Minecraft server
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Server stopped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MinecraftServer"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /servers/{id}/logs:
+    get:
+      operationId: getServerLogs
+      tags: [servers]
+      summary: Get recent logs from a server
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Server log lines
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerLogs"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /servers/{id}/mods:
+    get:
+      operationId: listServerMods
+      tags: [servers]
+      summary: List mods installed on a server
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Installed mods
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InstalledMod"
+    post:
+      operationId: installMod
+      tags: [servers]
+      summary: Install a mod on a server
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModInstallInput"
+      responses:
+        "201":
+          description: Mod installed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstalledMod"
+        "400":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /servers/{id}/mods/{modId}:
+    delete:
+      operationId: uninstallMod
+      tags: [servers]
+      summary: Remove a mod from a server
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: modId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Mod removed
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /servers/stats/summary:
+    get:
+      operationId: getServersSummary
+      tags: [servers]
+      summary: Dashboard summary - total servers, running count, mod counts
+      responses:
+        "200":
+          description: Summary stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServersSummary"
+
+  /mods/search:
+    get:
+      operationId: searchMods
+      tags: [mods]
+      summary: Search mods from CurseForge and Modrinth
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: source
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [curseforge, modrinth, all]
+            default: all
+        - name: loader
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [forge, fabric, neoforge, quilt, vanilla]
+        - name: gameVersion
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [relevance, downloads, updated]
+            default: relevance
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ModSearchResult"
+
+  /servers/{id}/mods/updates:
+    get:
+      operationId: listModUpdates
+      tags: [servers]
+      summary: Check which installed mods have updates available
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Update info per mod
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ModUpdateInfo"
+
+  /mods/featured:
+    get:
+      operationId: getFeaturedMods
+      tags: [mods]
+      summary: Get popular/featured mods
+      parameters:
+        - name: loader
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: gameVersion
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Featured mods
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ModSearchResult"
+
+  /versions/minecraft:
+    get:
+      operationId: listMinecraftVersions
+      tags: [versions]
+      summary: List available Minecraft versions
+      responses:
+        "200":
+          description: Minecraft versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MinecraftVersion"
+
+  /versions/loaders:
+    get:
+      operationId: listLoaderVersions
+      tags: [versions]
+      summary: List available loader versions for a given Minecraft version and loader type
+      parameters:
+        - name: loader
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [forge, fabric, neoforge, quilt]
+        - name: gameVersion
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Loader versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LoaderVersion"
+
+  /slugs/check:
+    get:
+      operationId: checkSlug
+      tags: [servers]
+      summary: Check if a custom slug is available
+      parameters:
+        - name: slug
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Slug availability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SlugCheck"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    MinecraftServer:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: ["string", "null"]
+        gameVersion:
+          type: string
+        serverType:
+          type: string
+          enum: [vanilla, paper, purpur, forge, fabric, neoforge, quilt]
+        loaderVersion:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [stopped, starting, running, stopping, error]
+        port:
+          type: ["integer", "null"]
+        maxPlayers:
+          type: integer
+        onlinePlayers:
+          type: integer
+        motd:
+          type: ["string", "null"]
+        memory:
+          type: integer
+          description: Memory in MB
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        modCount:
+          type: integer
+        serverProperties:
+          type: ["string", "null"]
+      required:
+        - id
+        - name
+        - slug
+        - description
+        - gameVersion
+        - serverType
+        - loaderVersion
+        - status
+        - port
+        - maxPlayers
+        - onlinePlayers
+        - motd
+        - memory
+        - createdAt
+        - updatedAt
+        - modCount
+        - serverProperties
+
+    ServerInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        slug:
+          type: string
+          minLength: 2
+          maxLength: 40
+        description:
+          type: string
+        gameVersion:
+          type: string
+        serverType:
+          type: string
+          enum: [vanilla, paper, purpur, forge, fabric, neoforge, quilt]
+        loaderVersion:
+          type: string
+        maxPlayers:
+          type: integer
+          default: 20
+        motd:
+          type: string
+        memory:
+          type: integer
+          default: 2048
+      required:
+        - name
+        - slug
+        - gameVersion
+        - serverType
+
+    ServerUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        maxPlayers:
+          type: integer
+        motd:
+          type: string
+        memory:
+          type: integer
+        serverType:
+          type: string
+          enum: [vanilla, paper, purpur, forge, fabric, neoforge, quilt]
+        gameVersion:
+          type: string
+        loaderVersion:
+          type: string
+        serverProperties:
+          type: string
+
+    ServerLogs:
+      type: object
+      properties:
+        serverId:
+          type: integer
+        lines:
+          type: array
+          items:
+            type: string
+      required:
+        - serverId
+        - lines
+
+    InstalledMod:
+      type: object
+      properties:
+        id:
+          type: integer
+        serverId:
+          type: integer
+        modId:
+          type: string
+        modName:
+          type: string
+        modVersion:
+          type: string
+        source:
+          type: string
+          enum: [curseforge, modrinth, upload]
+        iconUrl:
+          type: ["string", "null"]
+        installedAt:
+          type: string
+      required:
+        - id
+        - serverId
+        - modId
+        - modName
+        - modVersion
+        - source
+        - iconUrl
+        - installedAt
+
+    ModInstallInput:
+      type: object
+      properties:
+        modId:
+          type: string
+        modName:
+          type: string
+        modVersion:
+          type: string
+        source:
+          type: string
+          enum: [curseforge, modrinth, upload]
+        iconUrl:
+          type: string
+      required:
+        - modId
+        - modName
+        - modVersion
+        - source
+
+    ModSearchResult:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        author:
+          type: string
+        iconUrl:
+          type: ["string", "null"]
+        downloadCount:
+          type: integer
+        source:
+          type: string
+          enum: [curseforge, modrinth]
+        latestVersion:
+          type: ["string", "null"]
+        loaders:
+          type: array
+          items:
+            type: string
+        gameVersions:
+          type: array
+          items:
+            type: string
+        categories:
+          type: array
+          items:
+            type: string
+        websiteUrl:
+          type: ["string", "null"]
+      required:
+        - id
+        - name
+        - description
+        - author
+        - iconUrl
+        - downloadCount
+        - source
+        - latestVersion
+        - loaders
+        - gameVersions
+        - categories
+        - websiteUrl
+
+    ModDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        body:
+          type: ["string", "null"]
+        author:
+          type: string
+        iconUrl:
+          type: ["string", "null"]
+        downloads:
+          type: integer
+        categories:
+          type: array
+          items:
+            type: string
+        loaders:
+          type: array
+          items:
+            type: string
+        gameVersions:
+          type: array
+          items:
+            type: string
+        websiteUrl:
+          type: ["string", "null"]
+        source:
+          type: string
+      required:
+        - id
+        - name
+        - description
+        - body
+        - author
+        - iconUrl
+        - downloads
+        - categories
+        - loaders
+        - gameVersions
+        - websiteUrl
+        - source
+
+    ModVersionInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        versionNumber:
+          type: string
+        name:
+          type: string
+        changelog:
+          type: ["string", "null"]
+        datePublished:
+          type: string
+        gameVersions:
+          type: array
+          items:
+            type: string
+        loaders:
+          type: array
+          items:
+            type: string
+        downloadUrl:
+          type: ["string", "null"]
+        fileName:
+          type: string
+      required:
+        - id
+        - versionNumber
+        - name
+        - changelog
+        - datePublished
+        - gameVersions
+        - loaders
+        - downloadUrl
+        - fileName
+
+    ModUpdateInfo:
+      type: object
+      properties:
+        modId:
+          type: string
+        installedVersion:
+          type: string
+        latestVersion:
+          type: ["string", "null"]
+        hasUpdate:
+          type: boolean
+      required:
+        - modId
+        - installedVersion
+        - latestVersion
+        - hasUpdate
+
+    ServersSummary:
+      type: object
+      properties:
+        totalServers:
+          type: integer
+        runningServers:
+          type: integer
+        totalMods:
+          type: integer
+        popularVersion:
+          type: ["string", "null"]
+      required:
+        - totalServers
+        - runningServers
+        - totalMods
+        - popularVersion
+
+    MinecraftVersion:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [release, snapshot]
+        releaseTime:
+          type: string
+      required:
+        - id
+        - type
+        - releaseTime
+
+    LoaderVersion:
+      type: object
+      properties:
+        id:
+          type: string
+        stable:
+          type: boolean
+        recommended:
+          type: boolean
+      required:
+        - id
+        - stable
+        - recommended
+
+    SlugCheck:
+      type: object
+      properties:
+        slug:
+          type: string
+        available:
+          type: boolean
+      required:
+        - slug
+        - available
