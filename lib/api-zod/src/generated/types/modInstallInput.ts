@@ -5,6 +5,7 @@
  * Minecraft Server Hosting API
  * OpenAPI spec version: 0.1.0
  */
+import type { ModInstallInputCategory } from './modInstallInputCategory';
 import type { ModInstallInputSource } from './modInstallInputSource';
 
 export interface ModInstallInput {
@@ -13,4 +14,5 @@ export interface ModInstallInput {
   modVersion: string;
   source: ModInstallInputSource;
   iconUrl?: string;
+  category?: ModInstallInputCategory;
 }

@@ -6,12 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ModInstallInputSource = typeof ModInstallInputSource[keyof typeof ModInstallInputSource];
+export type PluginSearchResultSource = typeof PluginSearchResultSource[keyof typeof PluginSearchResultSource];
 
 
-export const ModInstallInputSource = {
-  curseforge: 'curseforge',
+export const PluginSearchResultSource = {
   modrinth: 'modrinth',
-  upload: 'upload',
   hangar: 'hangar',
 } as const;

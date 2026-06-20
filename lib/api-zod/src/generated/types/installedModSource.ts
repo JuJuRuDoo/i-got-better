@@ -13,4 +13,5 @@ export const InstalledModSource = {
   curseforge: 'curseforge',
   modrinth: 'modrinth',
   upload: 'upload',
+  hangar: 'hangar',
 } as const;

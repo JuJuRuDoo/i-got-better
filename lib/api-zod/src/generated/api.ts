@@ -251,8 +251,9 @@ export const ListServerModsResponseItem = zod.object({
   "modId": zod.string(),
   "modName": zod.string(),
   "modVersion": zod.string(),
-  "source": zod.enum(['curseforge', 'modrinth', 'upload']),
+  "source": zod.enum(['curseforge', 'modrinth', 'upload', 'hangar']),
   "iconUrl": zod.string().nullable(),
+  "category": zod.enum(['mod', 'plugin']),
   "installedAt": zod.string()
 })
 export const ListServerModsResponse = zod.array(ListServerModsResponseItem)
@@ -269,8 +270,9 @@ export const InstallModBody = zod.object({
   "modId": zod.string(),
   "modName": zod.string(),
   "modVersion": zod.string(),
-  "source": zod.enum(['curseforge', 'modrinth', 'upload']),
-  "iconUrl": zod.string().optional()
+  "source": zod.enum(['curseforge', 'modrinth', 'upload', 'hangar']),
+  "iconUrl": zod.string().optional(),
+  "category": zod.enum(['mod', 'plugin']).optional()
 })
 
 
@@ -292,6 +294,56 @@ export const GetServersSummaryResponse = zod.object({
   "totalMods": zod.number(),
   "popularVersion": zod.string().nullable()
 })
+
+
+/**
+ * @summary Search plugins from Modrinth and Hangar
+ */
+export const searchPluginsQueryQueryDefault = `optimization`;
+export const searchPluginsQuerySourceDefault = `modrinth`;
+export const searchPluginsQueryLimitDefault = 20;
+
+export const SearchPluginsQueryParams = zod.object({
+  "query": zod.coerce.string().default(searchPluginsQueryQueryDefault),
+  "source": zod.enum(['modrinth', 'hangar', 'all']).default(searchPluginsQuerySourceDefault),
+  "limit": zod.coerce.number().default(searchPluginsQueryLimitDefault)
+})
+
+export const SearchPluginsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "author": zod.string(),
+  "iconUrl": zod.string().nullable(),
+  "downloadCount": zod.number(),
+  "source": zod.enum(['modrinth', 'hangar']),
+  "latestVersion": zod.string().nullable(),
+  "loaders": zod.array(zod.string()),
+  "gameVersions": zod.array(zod.string()),
+  "categories": zod.array(zod.string()),
+  "websiteUrl": zod.string().nullable()
+})
+export const SearchPluginsResponse = zod.array(SearchPluginsResponseItem)
+
+
+/**
+ * @summary Get featured plugins from Modrinth and Hangar
+ */
+export const GetFeaturedPluginsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "author": zod.string(),
+  "iconUrl": zod.string().nullable(),
+  "downloadCount": zod.number(),
+  "source": zod.enum(['modrinth', 'hangar']),
+  "latestVersion": zod.string().nullable(),
+  "loaders": zod.array(zod.string()),
+  "gameVersions": zod.array(zod.string()),
+  "categories": zod.array(zod.string()),
+  "websiteUrl": zod.string().nullable()
+})
+export const GetFeaturedPluginsResponse = zod.array(GetFeaturedPluginsResponseItem)
 
 
 /**

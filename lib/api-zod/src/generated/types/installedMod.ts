@@ -5,6 +5,7 @@
  * Minecraft Server Hosting API
  * OpenAPI spec version: 0.1.0
  */
+import type { InstalledModCategory } from './installedModCategory';
 import type { InstalledModSource } from './installedModSource';
 
 export interface InstalledMod {
@@ -16,5 +17,6 @@ export interface InstalledMod {
   source: InstalledModSource;
   /** @nullable */
   iconUrl: string | null;
+  category: InstalledModCategory;
   installedAt: string;
 }
