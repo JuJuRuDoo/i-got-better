@@ -1,6 +1,8 @@
 import { createWriteStream, mkdirSync } from "fs";
 import path from "path";
-import { modsDir, ensureDirs } from "./jarDownloader.js";
+import { modsDir, pluginsDir, ensureDirs } from "./jarDownloader.js";
+
+const HANGAR_BASE = "https://hangar.papermc.io/api/v1";
 
 async function streamToFile(url: string, dest: string): Promise<number> {
   const res = await fetch(url, { redirect: "follow" });
@@ -114,4 +116,28 @@ export async function downloadCurseForgeMod(
   const size = await streamToFile(downloadUrl, dest);
 
   return { filePath: dest, filename: file.fileName, fileSize: size, downloadUrl };
+}
+
+export async function downloadHangarPlugin(
+  serverId: number,
+  pluginId: string
+): Promise<ModDownloadResult> {
+  ensureDirs(serverId);
+
+  const [author, slug] = pluginId.split(":");
+  if (!author || !slug) throw new Error(`Invalid Hangar plugin ID (expected author:slug): ${pluginId}`);
+
+  const versionRes = await fetch(
+    `${HANGAR_BASE}/projects/${author}/${slug}/latestrelease`,
+    { headers: { "User-Agent": "CraftHost/1.0" } }
+  );
+  if (!versionRes.ok) throw new Error(`Hangar API error ${versionRes.status} for ${pluginId}`);
+  const version = (await versionRes.text()).trim().replace(/^"|"$/g, "");
+
+  const downloadUrl = `${HANGAR_BASE}/projects/${author}/${slug}/versions/${version}/PAPER/download`;
+  const filename = `${slug}-${version}.jar`;
+  const dest = path.join(pluginsDir(serverId), filename);
+  const size = await streamToFile(downloadUrl, dest);
+
+  return { filePath: dest, filename, fileSize: size, downloadUrl };
 }

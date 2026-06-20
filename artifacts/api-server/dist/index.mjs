@@ -20498,27 +20498,27 @@ var require_router = __commonJS({
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
-    module.exports = Router8;
+    module.exports = Router9;
     module.exports.Route = Route;
-    function Router8(options) {
-      if (!(this instanceof Router8)) {
-        return new Router8(options);
+    function Router9(options) {
+      if (!(this instanceof Router9)) {
+        return new Router9(options);
       }
       const opts = options || {};
-      function router8(req, res, next) {
-        router8.handle(req, res, next);
+      function router9(req, res, next) {
+        router9.handle(req, res, next);
       }
-      Object.setPrototypeOf(router8, this);
-      router8.caseSensitive = opts.caseSensitive;
-      router8.mergeParams = opts.mergeParams;
-      router8.params = {};
-      router8.strict = opts.strict;
-      router8.stack = [];
-      return router8;
+      Object.setPrototypeOf(router9, this);
+      router9.caseSensitive = opts.caseSensitive;
+      router9.mergeParams = opts.mergeParams;
+      router9.params = {};
+      router9.strict = opts.strict;
+      router9.stack = [];
+      return router9;
     }
-    Router8.prototype = function() {
+    Router9.prototype = function() {
     };
-    Router8.prototype.param = function param(name, fn) {
+    Router9.prototype.param = function param(name, fn) {
       if (!name) {
         throw new TypeError("argument name is required");
       }
@@ -20538,7 +20538,7 @@ var require_router = __commonJS({
       params.push(fn);
       return this;
     };
-    Router8.prototype.handle = function handle(req, res, callback) {
+    Router9.prototype.handle = function handle(req, res, callback) {
       if (!callback) {
         throw new TypeError("argument callback is required");
       }
@@ -20665,7 +20665,7 @@ var require_router = __commonJS({
         }
       }
     };
-    Router8.prototype.use = function use(handler) {
+    Router9.prototype.use = function use(handler) {
       let offset = 0;
       let path5 = "/";
       if (typeof handler !== "function") {
@@ -20698,7 +20698,7 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router8.prototype.route = function route(path5) {
+    Router9.prototype.route = function route(path5) {
       const route2 = new Route(path5);
       const layer = new Layer(path5, {
         sensitive: this.caseSensitive,
@@ -20713,7 +20713,7 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      Router8.prototype[method] = function(path5) {
+      Router9.prototype[method] = function(path5) {
         const route = this.route(path5);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
@@ -20896,13 +20896,13 @@ var require_application = __commonJS({
     var compileTrust = require_utils3().compileTrust;
     var resolve = __require("node:path").resolve;
     var once = require_once();
-    var Router8 = require_router();
+    var Router9 = require_router();
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var app2 = exports = module.exports = {};
     var trustProxyDefaultSymbol = "@@symbol:trust_proxy_default";
     app2.init = function init() {
-      var router8 = null;
+      var router9 = null;
       this.cache = /* @__PURE__ */ Object.create(null);
       this.engines = /* @__PURE__ */ Object.create(null);
       this.settings = /* @__PURE__ */ Object.create(null);
@@ -20911,13 +20911,13 @@ var require_application = __commonJS({
         configurable: true,
         enumerable: true,
         get: function getrouter() {
-          if (router8 === null) {
-            router8 = new Router8({
+          if (router9 === null) {
+            router9 = new Router9({
               caseSensitive: this.enabled("case sensitive routing"),
               strict: this.enabled("strict routing")
             });
           }
-          return router8;
+          return router9;
         }
       });
     };
@@ -20988,15 +20988,15 @@ var require_application = __commonJS({
       if (fns.length === 0) {
         throw new TypeError("app.use() requires a middleware function");
       }
-      var router8 = this.router;
+      var router9 = this.router;
       fns.forEach(function(fn2) {
         if (!fn2 || !fn2.handle || !fn2.set) {
-          return router8.use(path5, fn2);
+          return router9.use(path5, fn2);
         }
         debug(".use app under %s", path5);
         fn2.mountpath = path5;
         fn2.parent = this;
-        router8.use(path5, function mounted_app(req, res, next) {
+        router9.use(path5, function mounted_app(req, res, next) {
           var orig = req.app;
           fn2.handle(req, res, function(err) {
             Object.setPrototypeOf(req, orig.request);
@@ -23569,7 +23569,7 @@ var require_express = __commonJS({
     var EventEmitter = __require("node:events").EventEmitter;
     var mixin = require_merge_descriptors();
     var proto = require_application();
-    var Router8 = require_router();
+    var Router9 = require_router();
     var req = require_request();
     var res = require_response();
     exports = module.exports = createApplication;
@@ -23591,8 +23591,8 @@ var require_express = __commonJS({
     exports.application = proto;
     exports.request = req;
     exports.response = res;
-    exports.Route = Router8.Route;
-    exports.Router = Router8;
+    exports.Route = Router9.Route;
+    exports.Router = Router9;
     exports.json = bodyParser.json;
     exports.raw = bodyParser.raw;
     exports.static = require_serve_static();
@@ -50216,14 +50216,14 @@ var require_lib6 = __commonJS({
 });
 
 // src/app.ts
-var import_express8 = __toESM(require_express2(), 1);
+var import_express9 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 var import_pino_http = __toESM(require_logger(), 1);
 import path4 from "path";
 import fs from "fs";
 
 // src/routes/index.ts
-var import_express7 = __toESM(require_express2(), 1);
+var import_express8 = __toESM(require_express2(), 1);
 
 // src/routes/health.ts
 var import_express = __toESM(require_express2(), 1);
@@ -54293,8 +54293,9 @@ var ListServerModsResponseItem = objectType({
   "modId": stringType(),
   "modName": stringType(),
   "modVersion": stringType(),
-  "source": enumType(["curseforge", "modrinth", "upload"]),
+  "source": enumType(["curseforge", "modrinth", "upload", "hangar"]),
   "iconUrl": stringType().nullable(),
+  "category": enumType(["mod", "plugin"]),
   "installedAt": stringType()
 });
 var ListServerModsResponse = arrayType(ListServerModsResponseItem);
@@ -54305,8 +54306,9 @@ var InstallModBody = objectType({
   "modId": stringType(),
   "modName": stringType(),
   "modVersion": stringType(),
-  "source": enumType(["curseforge", "modrinth", "upload"]),
-  "iconUrl": stringType().optional()
+  "source": enumType(["curseforge", "modrinth", "upload", "hangar"]),
+  "iconUrl": stringType().optional(),
+  "category": enumType(["mod", "plugin"]).optional()
 });
 var UninstallModParams = objectType({
   "id": coerce.number(),
@@ -54318,6 +54320,44 @@ var GetServersSummaryResponse = objectType({
   "totalMods": numberType(),
   "popularVersion": stringType().nullable()
 });
+var searchPluginsQueryQueryDefault = `optimization`;
+var searchPluginsQuerySourceDefault = `modrinth`;
+var searchPluginsQueryLimitDefault = 20;
+var SearchPluginsQueryParams = objectType({
+  "query": coerce.string().default(searchPluginsQueryQueryDefault),
+  "source": enumType(["modrinth", "hangar", "all"]).default(searchPluginsQuerySourceDefault),
+  "limit": coerce.number().default(searchPluginsQueryLimitDefault)
+});
+var SearchPluginsResponseItem = objectType({
+  "id": stringType(),
+  "name": stringType(),
+  "description": stringType(),
+  "author": stringType(),
+  "iconUrl": stringType().nullable(),
+  "downloadCount": numberType(),
+  "source": enumType(["modrinth", "hangar"]),
+  "latestVersion": stringType().nullable(),
+  "loaders": arrayType(stringType()),
+  "gameVersions": arrayType(stringType()),
+  "categories": arrayType(stringType()),
+  "websiteUrl": stringType().nullable()
+});
+var SearchPluginsResponse = arrayType(SearchPluginsResponseItem);
+var GetFeaturedPluginsResponseItem = objectType({
+  "id": stringType(),
+  "name": stringType(),
+  "description": stringType(),
+  "author": stringType(),
+  "iconUrl": stringType().nullable(),
+  "downloadCount": numberType(),
+  "source": enumType(["modrinth", "hangar"]),
+  "latestVersion": stringType().nullable(),
+  "loaders": arrayType(stringType()),
+  "gameVersions": arrayType(stringType()),
+  "categories": arrayType(stringType()),
+  "websiteUrl": stringType().nullable()
+});
+var GetFeaturedPluginsResponse = arrayType(GetFeaturedPluginsResponseItem);
 var searchModsQuerySourceDefault = `all`;
 var searchModsQueryLimitDefault = 20;
 var searchModsQuerySortDefault = `relevance`;
@@ -72822,6 +72862,7 @@ var installedModsTable = pgTable("installed_mods", {
   fileSize: integer("file_size"),
   downloadUrl: text("download_url"),
   downloadStatus: text("download_status").notNull().default("pending"),
+  category: text("category").notNull().default("mod"),
   installedAt: timestamp("installed_at").notNull().defaultNow()
 });
 var insertModSchema = createInsertSchema(installedModsTable).omit({
@@ -73137,9 +73178,13 @@ function serverJarPath(serverId) {
 function modsDir(serverId) {
   return path.join(serverDir(serverId), "mods");
 }
+function pluginsDir(serverId) {
+  return path.join(serverDir(serverId), "plugins");
+}
 function ensureDirs(serverId) {
   mkdirSync(serverDir(serverId), { recursive: true });
   mkdirSync(modsDir(serverId), { recursive: true });
+  mkdirSync(pluginsDir(serverId), { recursive: true });
 }
 async function streamToFile(url2, dest, onProgress) {
   const res = await fetch(url2, { redirect: "follow" });
@@ -73265,6 +73310,7 @@ async function getJarInfo(serverId) {
 // src/lib/modDownloader.ts
 import { createWriteStream as createWriteStream2, mkdirSync as mkdirSync2 } from "fs";
 import path2 from "path";
+var HANGAR_BASE = "https://hangar.papermc.io/api/v1";
 async function streamToFile2(url2, dest) {
   const res = await fetch(url2, { redirect: "follow" });
   if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url2}`);
@@ -73331,6 +73377,22 @@ async function downloadCurseForgeMod(serverId, modId, gameVersion, loader) {
   const dest = path2.join(modsDir(serverId), file2.fileName);
   const size = await streamToFile2(downloadUrl, dest);
   return { filePath: dest, filename: file2.fileName, fileSize: size, downloadUrl };
+}
+async function downloadHangarPlugin(serverId, pluginId) {
+  ensureDirs(serverId);
+  const [author, slug] = pluginId.split(":");
+  if (!author || !slug) throw new Error(`Invalid Hangar plugin ID (expected author:slug): ${pluginId}`);
+  const versionRes = await fetch(
+    `${HANGAR_BASE}/projects/${author}/${slug}/latestrelease`,
+    { headers: { "User-Agent": "CraftHost/1.0" } }
+  );
+  if (!versionRes.ok) throw new Error(`Hangar API error ${versionRes.status} for ${pluginId}`);
+  const version3 = (await versionRes.text()).trim().replace(/^"|"$/g, "");
+  const downloadUrl = `${HANGAR_BASE}/projects/${author}/${slug}/versions/${version3}/PAPER/download`;
+  const filename = `${slug}-${version3}.jar`;
+  const dest = path2.join(pluginsDir(serverId), filename);
+  const size = await streamToFile2(downloadUrl, dest);
+  return { filePath: dest, filename, fileSize: size, downloadUrl };
 }
 
 // src/routes/servers.ts
@@ -73722,6 +73784,7 @@ router2.post("/:id/mods", async (req, res) => {
       res.status(404).json({ error: "Server not found" });
       return;
     }
+    const isPlugin = body.data.category === "plugin";
     const [mod] = await db.insert(installedModsTable).values({
       serverId: params.data.id,
       modId: body.data.modId,
@@ -73729,36 +73792,31 @@ router2.post("/:id/mods", async (req, res) => {
       modVersion: body.data.modVersion,
       source: body.data.source,
       iconUrl: body.data.iconUrl ?? null,
-      downloadStatus: "downloading"
+      downloadStatus: "downloading",
+      category: isPlugin ? "plugin" : "mod"
     }).returning();
     res.status(201).json({ ...mod, iconUrl: mod.iconUrl ?? null, installedAt: mod.installedAt.toISOString() });
     const loader = server.serverType !== "vanilla" ? server.serverType : void 0;
+    const handleResult2 = async (promise2) => {
+      promise2.then(async (result) => {
+        await db.update(installedModsTable).set({
+          filePath: result.filePath,
+          fileSize: result.fileSize,
+          downloadUrl: result.downloadUrl,
+          modVersion: result.filename,
+          downloadStatus: "ready"
+        }).where(eq(installedModsTable.id, mod.id));
+      }).catch(async (err) => {
+        await db.update(installedModsTable).set({ downloadStatus: "error" }).where(eq(installedModsTable.id, mod.id));
+        req.log.error(err, "Mod/plugin download failed");
+      });
+    };
     if (body.data.source === "modrinth") {
-      downloadModrinthMod(params.data.id, body.data.modId, server.gameVersion, loader).then(async (result) => {
-        await db.update(installedModsTable).set({
-          filePath: result.filePath,
-          fileSize: result.fileSize,
-          downloadUrl: result.downloadUrl,
-          modVersion: result.filename,
-          downloadStatus: "ready"
-        }).where(eq(installedModsTable.id, mod.id));
-      }).catch(async (err) => {
-        await db.update(installedModsTable).set({ downloadStatus: "error" }).where(eq(installedModsTable.id, mod.id));
-        req.log.error(err, "Modrinth mod download failed");
-      });
+      void handleResult2(downloadModrinthMod(params.data.id, body.data.modId, server.gameVersion, isPlugin ? void 0 : loader));
     } else if (body.data.source === "curseforge") {
-      downloadCurseForgeMod(params.data.id, body.data.modId, server.gameVersion, loader).then(async (result) => {
-        await db.update(installedModsTable).set({
-          filePath: result.filePath,
-          fileSize: result.fileSize,
-          downloadUrl: result.downloadUrl,
-          modVersion: result.filename,
-          downloadStatus: "ready"
-        }).where(eq(installedModsTable.id, mod.id));
-      }).catch(async (err) => {
-        await db.update(installedModsTable).set({ downloadStatus: "error" }).where(eq(installedModsTable.id, mod.id));
-        req.log.error(err, "CurseForge mod download failed");
-      });
+      void handleResult2(downloadCurseForgeMod(params.data.id, body.data.modId, server.gameVersion, loader));
+    } else if (body.data.source === "hangar") {
+      void handleResult2(downloadHangarPlugin(params.data.id, body.data.modId));
     } else {
       await db.update(installedModsTable).set({ downloadStatus: "ready" }).where(eq(installedModsTable.id, mod.id));
     }
@@ -74551,15 +74609,129 @@ router6.get("/check", async (req, res) => {
 });
 var slugs_default = router6;
 
-// src/routes/index.ts
+// src/routes/plugins.ts
+var import_express7 = __toESM(require_express2(), 1);
 var router7 = (0, import_express7.Router)();
-router7.use(health_default);
-router7.use("/servers", servers_default);
-router7.use("/mods", modDetail_default);
-router7.use("/mods", mods_default);
-router7.use("/versions", versions_default);
-router7.use("/slugs", slugs_default);
-var routes_default = router7;
+var MODRINTH_BASE5 = "https://api.modrinth.com/v2";
+var HANGAR_BASE2 = "https://hangar.papermc.io/api/v1";
+function fromModrinth(h) {
+  return {
+    id: h.project_id,
+    name: h.title,
+    description: h.description,
+    author: h.author,
+    iconUrl: h.icon_url,
+    downloadCount: h.downloads,
+    source: "modrinth",
+    latestVersion: null,
+    loaders: h.loaders ?? [],
+    gameVersions: h.game_versions ?? [],
+    categories: h.categories ?? [],
+    websiteUrl: `https://modrinth.com/plugin/${h.slug}`
+  };
+}
+function fromHangar(p) {
+  return {
+    id: `${p.namespace.owner}:${p.namespace.slug}`,
+    name: p.name,
+    description: p.description,
+    author: p.namespace.owner,
+    iconUrl: p.avatarUrl,
+    downloadCount: p.stats.downloads,
+    source: "hangar",
+    latestVersion: null,
+    loaders: ["paper", "purpur"],
+    gameVersions: [],
+    categories: [],
+    websiteUrl: `https://hangar.papermc.io/${p.namespace.owner}/${p.namespace.slug}`
+  };
+}
+async function searchModrinthPlugins(query, limit) {
+  try {
+    const params = new URLSearchParams({
+      query,
+      limit: String(limit),
+      facets: JSON.stringify([["project_type:plugin"]]),
+      index: "downloads"
+    });
+    const res = await fetch(`${MODRINTH_BASE5}/search?${params}`, {
+      headers: { "User-Agent": "CraftHost/1.0" }
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.hits ?? []).map(fromModrinth);
+  } catch {
+    return [];
+  }
+}
+async function searchHangarPlugins(query, limit) {
+  try {
+    const params = new URLSearchParams({
+      q: query,
+      limit: String(limit),
+      platform: "PAPER",
+      sort: "DOWNLOADS"
+    });
+    const res = await fetch(`${HANGAR_BASE2}/projects?${params}`, {
+      headers: { "User-Agent": "CraftHost/1.0" }
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.result ?? []).map(fromHangar);
+  } catch {
+    return [];
+  }
+}
+router7.get("/search", async (req, res) => {
+  const parsed = SearchPluginsQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid params" });
+    return;
+  }
+  const { query = "optimization", source = "modrinth", limit = 20 } = parsed.data;
+  try {
+    let results = [];
+    if (source === "modrinth") {
+      results = await searchModrinthPlugins(query, limit);
+    } else if (source === "hangar") {
+      results = await searchHangarPlugins(query, limit);
+    } else {
+      const [mr, hg] = await Promise.all([
+        searchModrinthPlugins(query, Math.ceil(limit / 2)),
+        searchHangarPlugins(query, Math.ceil(limit / 2))
+      ]);
+      results = [...mr, ...hg];
+    }
+    res.json(results);
+  } catch (err) {
+    req.log.error(err, "Plugin search failed");
+    res.status(500).json({ error: "Plugin search failed" });
+  }
+});
+router7.get("/featured", async (req, res) => {
+  try {
+    const [mr, hg] = await Promise.all([
+      searchModrinthPlugins("optimization", 10),
+      searchHangarPlugins("", 10)
+    ]);
+    res.json([...hg, ...mr]);
+  } catch (err) {
+    req.log.error(err, "Featured plugins failed");
+    res.status(500).json({ error: "Failed to get featured plugins" });
+  }
+});
+var plugins_default = router7;
+
+// src/routes/index.ts
+var router8 = (0, import_express8.Router)();
+router8.use(health_default);
+router8.use("/servers", servers_default);
+router8.use("/mods", modDetail_default);
+router8.use("/mods", mods_default);
+router8.use("/plugins", plugins_default);
+router8.use("/versions", versions_default);
+router8.use("/slugs", slugs_default);
+var routes_default = router8;
 
 // src/lib/logger.ts
 var import_pino = __toESM(require_pino(), 1);
@@ -74580,7 +74752,7 @@ var logger = (0, import_pino.default)({
 });
 
 // src/app.ts
-var app = (0, import_express8.default)();
+var app = (0, import_express9.default)();
 app.use(
   (0, import_pino_http.default)({
     logger,
@@ -74601,12 +74773,12 @@ app.use(
   })
 );
 app.use((0, import_cors.default)());
-app.use(import_express8.default.json());
-app.use(import_express8.default.urlencoded({ extended: true }));
+app.use(import_express9.default.json());
+app.use(import_express9.default.urlencoded({ extended: true }));
 app.use("/api", routes_default);
 var staticDir = path4.resolve(import.meta.dirname, "../../mchost/dist/public");
 if (process.env.NODE_ENV === "production" && fs.existsSync(staticDir)) {
-  app.use(import_express8.default.static(staticDir));
+  app.use(import_express9.default.static(staticDir));
   app.get("*", (_req, res) => {
     res.sendFile(path4.join(staticDir, "index.html"));
   });

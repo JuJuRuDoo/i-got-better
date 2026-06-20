@@ -22,8 +22,8 @@ import {
 } from "@workspace/api-zod";
 import * as serverProcess from "../lib/serverProcess.js";
 import * as virtualFiles from "../lib/virtualFiles.js";
-import { downloadServerJar, getJarInfo, modsDir, serverDir } from "../lib/jarDownloader.js";
-import { downloadModrinthMod, downloadCurseForgeMod } from "../lib/modDownloader.js";
+import { downloadServerJar, getJarInfo, modsDir, pluginsDir, serverDir } from "../lib/jarDownloader.js";
+import { downloadModrinthMod, downloadCurseForgeMod, downloadHangarPlugin } from "../lib/modDownloader.js";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } });
 
@@ -402,6 +402,8 @@ router.post("/:id/mods", async (req, res) => {
     const server = (await db.select().from(serversTable).where(eq(serversTable.id, params.data.id)).limit(1))[0];
     if (!server) { res.status(404).json({ error: "Server not found" }); return; }
 
+    const isPlugin = body.data.category === "plugin";
+
     const [mod] = await db.insert(installedModsTable).values({
       serverId: params.data.id,
       modId: body.data.modId,
@@ -410,50 +412,40 @@ router.post("/:id/mods", async (req, res) => {
       source: body.data.source,
       iconUrl: body.data.iconUrl ?? null,
       downloadStatus: "downloading",
+      category: isPlugin ? "plugin" : "mod",
     }).returning();
 
     res.status(201).json({ ...mod, iconUrl: mod.iconUrl ?? null, installedAt: mod.installedAt.toISOString() });
 
     const loader = server.serverType !== "vanilla" ? server.serverType : undefined;
 
+    const handleResult = async (promise: Promise<{ filePath: string; fileSize: number; downloadUrl: string; filename: string }>) => {
+      promise
+        .then(async (result) => {
+          await db.update(installedModsTable)
+            .set({
+              filePath: result.filePath,
+              fileSize: result.fileSize,
+              downloadUrl: result.downloadUrl,
+              modVersion: result.filename,
+              downloadStatus: "ready",
+            })
+            .where(eq(installedModsTable.id, mod.id));
+        })
+        .catch(async (err) => {
+          await db.update(installedModsTable)
+            .set({ downloadStatus: "error" })
+            .where(eq(installedModsTable.id, mod.id));
+          req.log.error(err, "Mod/plugin download failed");
+        });
+    };
+
     if (body.data.source === "modrinth") {
-      downloadModrinthMod(params.data.id, body.data.modId, server.gameVersion, loader)
-        .then(async (result) => {
-          await db.update(installedModsTable)
-            .set({
-              filePath: result.filePath,
-              fileSize: result.fileSize,
-              downloadUrl: result.downloadUrl,
-              modVersion: result.filename,
-              downloadStatus: "ready",
-            })
-            .where(eq(installedModsTable.id, mod.id));
-        })
-        .catch(async (err) => {
-          await db.update(installedModsTable)
-            .set({ downloadStatus: "error" })
-            .where(eq(installedModsTable.id, mod.id));
-          req.log.error(err, "Modrinth mod download failed");
-        });
+      void handleResult(downloadModrinthMod(params.data.id, body.data.modId, server.gameVersion, isPlugin ? undefined : loader));
     } else if (body.data.source === "curseforge") {
-      downloadCurseForgeMod(params.data.id, body.data.modId, server.gameVersion, loader)
-        .then(async (result) => {
-          await db.update(installedModsTable)
-            .set({
-              filePath: result.filePath,
-              fileSize: result.fileSize,
-              downloadUrl: result.downloadUrl,
-              modVersion: result.filename,
-              downloadStatus: "ready",
-            })
-            .where(eq(installedModsTable.id, mod.id));
-        })
-        .catch(async (err) => {
-          await db.update(installedModsTable)
-            .set({ downloadStatus: "error" })
-            .where(eq(installedModsTable.id, mod.id));
-          req.log.error(err, "CurseForge mod download failed");
-        });
+      void handleResult(downloadCurseForgeMod(params.data.id, body.data.modId, server.gameVersion, loader));
+    } else if (body.data.source === "hangar") {
+      void handleResult(downloadHangarPlugin(params.data.id, body.data.modId));
     } else {
       await db.update(installedModsTable)
         .set({ downloadStatus: "ready" })

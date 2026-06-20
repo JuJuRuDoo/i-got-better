@@ -16,9 +16,14 @@ export function modsDir(serverId: number): string {
   return path.join(serverDir(serverId), "mods");
 }
 
+export function pluginsDir(serverId: number): string {
+  return path.join(serverDir(serverId), "plugins");
+}
+
 export function ensureDirs(serverId: number): void {
   mkdirSync(serverDir(serverId), { recursive: true });
   mkdirSync(modsDir(serverId), { recursive: true });
+  mkdirSync(pluginsDir(serverId), { recursive: true });
 }
 
 async function streamToFile(url: string, dest: string, onProgress?: (bytes: number) => void): Promise<number> {
