@@ -56,6 +56,23 @@ export async function runMigrations() {
         "category" text DEFAULT 'mod' NOT NULL,
         "installed_at" timestamp DEFAULT now() NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS "server_files" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "server_id" integer NOT NULL REFERENCES "servers"("id") ON DELETE CASCADE,
+        "path" text NOT NULL,
+        "content" text NOT NULL DEFAULT '',
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL,
+        CONSTRAINT "server_files_server_id_path_unique" UNIQUE("server_id", "path")
+      );
+
+      CREATE TABLE IF NOT EXISTS "server_logs" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "server_id" integer NOT NULL REFERENCES "servers"("id") ON DELETE CASCADE,
+        "line" text NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL
+      );
     `);
   } finally {
     client.release();
