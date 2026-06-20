@@ -1,7 +1,7 @@
 {
   "provider": "node",
   "build": {
-    "cmd": "pnpm install && pnpm run build:railway"
+    "cmd": "npm install -g pnpm && pnpm install && pnpm run build:railway"
   },
   "start": {
     "cmd": "node artifacts/api-server/dist/index.mjs"
