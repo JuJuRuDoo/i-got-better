@@ -2,16 +2,10 @@
 nixPkgs = ["nodejs_22", "jdk21"]
 
 [phases.install]
-cmds = [
-  "npm install -g pnpm@10.26.1",
-  "pnpm install --frozen-lockfile"
-]
+cmds = ["corepack enable", "corepack prepare pnpm@10.26.1 --activate", "pnpm install --frozen-lockfile"]
 
 [phases.build]
-cmds = [
-  "java -version",
-  "pnpm run build:railway"
-]
+cmds = ["java -version", "pnpm run build:railway"]
 
 [start]
 cmd = "java -version && node artifacts/api-server/dist/index.mjs"
