@@ -4,10 +4,10 @@ import asyncio
 import aiohttp
 import re
 import time
+import os
 from datetime import datetime
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
 from aiohttp_socks import ProxyConnector
 from python_socks.async_.asyncio import Proxy
 import uvicorn
