@@ -1,43 +1,23 @@
-const MAX_LOGS = 1000;
+import { spawn, ChildProcess } from "child_process";
+import { EventEmitter } from "events";
+import { writeFileSync, mkdirSync } from "fs";
+import path from "path";
+import { db, serverLogsTable, serversTable } from "@workspace/db";
+import { eq, asc } from "drizzle-orm";
+
+const MAX_LOGS = 2000;
+const MAX_PERSISTED_LOGS = 300;
 
 interface ProcessState {
-  status: "stopped" | "downloading" | "starting" | "running" | "stopping" | "error";
+  proc: ChildProcess;
   logs: string[];
-  startTime?: Date;
-  timer?: ReturnType<typeof setInterval>;
-  tickCount: number;
+  startedAt: Date;
 }
 
-const states = new Map<number, ProcessState>();
-
-function ts() {
-  return new Date().toISOString().replace("T", " ").replace("Z", "");
-}
-
-function addLog(state: ProcessState, line: string) {
-  state.logs.push(line);
-  if (state.logs.length > MAX_LOGS) state.logs.shift();
-}
-
-function randomInt(min: number, max: number) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-const PLAYER_NAMES = ["Steve", "Alex", "Notch", "Herobrine", "xXx_Player_xXx", "CoolMiner99", "BuilderPro"];
-const RANDOM_EVENTS = [
-  (_sid: number, _cfg: ServerConfig) =>
-    `[${ts()}] [Server thread/INFO]: ${PLAYER_NAMES[randomInt(0, PLAYER_NAMES.length - 1)]} joined the game`,
-  (_sid: number, _cfg: ServerConfig) =>
-    `[${ts()}] [Server thread/INFO]: ${PLAYER_NAMES[randomInt(0, PLAYER_NAMES.length - 1)]} left the game`,
-  (_sid: number, _cfg: ServerConfig) =>
-    `[${ts()}] [Server thread/INFO]: Running autosave...`,
-  (_sid: number, _cfg: ServerConfig) =>
-    `[${ts()}] [Server thread/INFO]: Saved the game`,
-  (_sid: number, _cfg: ServerConfig) =>
-    `[${ts()}] [Server thread/INFO]: Keeping entity tick rate at 20 tps`,
-  (_sid: number, cfg: ServerConfig) =>
-    `[${ts()}] [Server thread/INFO]: Difficulty: ${cfg.difficulty}`,
-];
+const processes = new Map<number, ProcessState>();
+const stoppedLogs = new Map<number, string[]>();
+export const logEmitter = new EventEmitter();
+logEmitter.setMaxListeners(200);
 
 export interface ServerConfig {
   id: number;
@@ -49,203 +29,206 @@ export interface ServerConfig {
   motd: string | null;
   difficulty: string;
   gamemode: string;
+  serverProperties: string | null;
 }
 
-function buildStartupLogs(cfg: ServerConfig): string[] {
-  const lines: string[] = [];
-  const t = ts();
-  lines.push(`[${t}] [main/INFO]: Loading libraries, please wait...`);
-  if (cfg.serverType !== "vanilla") {
-    lines.push(`[${t}] [main/INFO]: ${cfg.serverType.charAt(0).toUpperCase() + cfg.serverType.slice(1)} loader ${cfg.loaderVersion ?? "latest"} for Minecraft ${cfg.gameVersion}`);
-    lines.push(`[${t}] [main/INFO]: Loading mods from /mods`);
+export function getServerDir(serverId: number): string {
+  const dataDir = process.env.DATA_DIR ?? "./server-data";
+  return path.join(dataDir, "servers", String(serverId));
+}
+
+function pushLog(serverId: number, state: ProcessState, line: string) {
+  const trimmed = line.replace(/\r/g, "").trimEnd();
+  if (!trimmed) return;
+  state.logs.push(trimmed);
+  if (state.logs.length > MAX_LOGS) state.logs.shift();
+  logEmitter.emit("log", serverId, trimmed);
+}
+
+async function persistLogs(serverId: number, logs: string[]) {
+  try {
+    const tail = logs.slice(-MAX_PERSISTED_LOGS);
+    await db.delete(serverLogsTable).where(eq(serverLogsTable.serverId, serverId));
+    if (tail.length > 0) {
+      await db.insert(serverLogsTable).values(tail.map((line) => ({ serverId, line })));
+    }
+  } catch { /* non-fatal */ }
+}
+
+export async function loadLogsFromDb(serverId: number): Promise<string[]> {
+  try {
+    const rows = await db
+      .select()
+      .from(serverLogsTable)
+      .where(eq(serverLogsTable.serverId, serverId))
+      .orderBy(asc(serverLogsTable.id));
+    return rows.map((r) => r.line);
+  } catch {
+    return [];
   }
-  lines.push(`[${t}] [main/INFO]: Preparing level "world"`);
-  lines.push(`[${t}] [main/INFO]: Preparing start region for dimension minecraft:overworld`);
-  lines.push(`[${t}] [main/INFO]: Time elapsed: ${randomInt(1200, 4800)} ms`);
-  lines.push(`[${t}] [main/INFO]: Preparing start region for dimension minecraft:the_nether`);
-  lines.push(`[${t}] [main/INFO]: Preparing start region for dimension minecraft:the_end`);
-  lines.push(`[${t}] [Server thread/INFO]: Done (${randomInt(3, 12)}s)! For help, type "help"`);
-  lines.push(`[${t}] [Server thread/INFO]: Starting remote control listener`);
-  lines.push(`[${t}] [Server thread/INFO]: RCON running on 0.0.0.0:25575`);
-  lines.push(`[${t}] [Server thread/INFO]: Server listening on port 25565`);
-  return lines;
-}
-
-export function getState(serverId: number) {
-  return states.get(serverId) ?? { status: "stopped", logs: [], tickCount: 0 };
 }
 
 export function getLogs(serverId: number): string[] {
-  return states.get(serverId)?.logs ?? [];
+  const running = processes.get(serverId);
+  if (running) return running.logs;
+  return stoppedLogs.get(serverId) ?? [];
 }
 
-export function getStatus(serverId: number): string {
-  return states.get(serverId)?.status ?? "stopped";
+export function getStatus(serverId: number): "running" | "stopped" {
+  return processes.has(serverId) ? "running" : "stopped";
 }
 
-export function initDownloading(serverId: number): void {
-  const existing = states.get(serverId);
-  const state: ProcessState = {
-    status: "downloading",
-    logs: existing?.logs ?? [],
-    startTime: new Date(),
-    tickCount: 0,
-  };
-  states.set(serverId, state);
-}
-
-export function appendLog(serverId: number, line: string): void {
-  const state = states.get(serverId);
-  if (state) addLog(state, line);
-}
-
-export function markError(serverId: number, message: string): void {
-  const state = states.get(serverId);
-  if (state) {
-    state.status = "error";
-    addLog(state, `[${ts()}] [main/ERROR]: ${message}`);
+function buildServerProperties(cfg: ServerConfig): string {
+  const base = cfg.serverProperties ?? "";
+  const props: Record<string, string> = {};
+  for (const line of base.split("\n")) {
+    const eq = line.indexOf("=");
+    if (eq > 0 && !line.startsWith("#")) {
+      props[line.slice(0, eq).trim()] = line.slice(eq + 1).trim();
+    }
   }
+  props["max-players"] = String(cfg.maxPlayers);
+  props["difficulty"] = cfg.difficulty;
+  props["gamemode"] = cfg.gamemode;
+  if (cfg.motd) props["motd"] = cfg.motd;
+  props["enable-rcon"] = "false";
+  props["online-mode"] = "false";
+  props["server-port"] = "25565";
+
+  const lines = Object.entries(props).map(([k, v]) => `${k}=${v}`);
+  return "# server.properties\n" + lines.join("\n") + "\n";
 }
 
 export async function startServer(serverId: number, cfg: ServerConfig): Promise<void> {
-  const existing = states.get(serverId);
-  if (existing && (existing.status === "running" || existing.status === "starting")) return;
+  if (processes.has(serverId)) return;
 
-  const state: ProcessState = existing ?? {
-    status: "starting",
-    logs: [],
-    startTime: new Date(),
-    tickCount: 0,
+  const dir = getServerDir(serverId);
+  mkdirSync(dir, { recursive: true });
+
+  writeFileSync(path.join(dir, "eula.txt"), "eula=true\n");
+  writeFileSync(path.join(dir, "server.properties"), buildServerProperties(cfg));
+
+  const javaArgs = [
+    `-Xmx${cfg.memory}M`,
+    `-Xms${Math.max(512, Math.floor(cfg.memory / 2))}M`,
+    "-jar", "server.jar",
+    "--nogui",
+  ];
+
+  let proc: ChildProcess;
+  try {
+    proc = spawn("java", javaArgs, { cwd: dir, stdio: ["pipe", "pipe", "pipe"] });
+  } catch (err) {
+    const msg = `[ERROR] Failed to spawn java: ${String(err)}. Is Java installed?`;
+    const fallback: ProcessState = {
+      proc: null as unknown as ChildProcess,
+      logs: [msg],
+      startedAt: new Date(),
+    };
+    stoppedLogs.set(serverId, [msg]);
+    logEmitter.emit("log", serverId, msg);
+    await db
+      .update(serversTable)
+      .set({ status: "stopped", port: null, updatedAt: new Date() })
+      .where(eq(serversTable.id, serverId));
+    void fallback;
+    return;
+  }
+
+  const state: ProcessState = { proc, logs: [], startedAt: new Date() };
+  processes.set(serverId, state);
+  stoppedLogs.delete(serverId);
+
+  let lineBuffer = "";
+  const handleChunk = (chunk: Buffer) => {
+    lineBuffer += chunk.toString();
+    const lines = lineBuffer.split("\n");
+    lineBuffer = lines.pop() ?? "";
+    for (const line of lines) {
+      pushLog(serverId, state, line);
+    }
   };
 
-  state.status = "starting";
-  state.startTime = new Date();
-  states.set(serverId, state);
+  proc.stdout?.on("data", handleChunk);
+  proc.stderr?.on("data", handleChunk);
 
-  addLog(state, `[${ts()}] [main/INFO]: Starting Minecraft ${cfg.gameVersion} server (${cfg.serverType})`);
-  addLog(state, `[${ts()}] [main/INFO]: Java path: /usr/bin/java  Memory: ${cfg.memory}M`);
-
-  const startupLogs = buildStartupLogs(cfg);
-  let i = 0;
-
-  const startupTimer = setInterval(() => {
-    if (i < startupLogs.length) {
-      addLog(state, startupLogs[i++]);
-    } else {
-      clearInterval(startupTimer);
-      state.status = "running";
-      addLog(state, `[${ts()}] [Server thread/INFO]: Server is now accepting connections on port 25565`);
-
-      const runTimer = setInterval(() => {
-        const s = states.get(serverId);
-        if (!s || s.status !== "running") {
-          clearInterval(runTimer);
-          return;
-        }
-        s.tickCount++;
-        if (s.tickCount % randomInt(8, 20) === 0) {
-          const fn = RANDOM_EVENTS[randomInt(0, RANDOM_EVENTS.length - 1)];
-          addLog(s, fn(serverId, cfg));
-        }
-      }, 5000);
-
-      state.timer = runTimer;
+  proc.on("exit", (code, signal) => {
+    if (lineBuffer.trim()) {
+      pushLog(serverId, state, lineBuffer);
+      lineBuffer = "";
     }
-  }, 300);
+    const exitMsg = `[Server process exited — code=${code ?? "?"} signal=${signal ?? "none"}]`;
+    state.logs.push(exitMsg);
+    logEmitter.emit("log", serverId, exitMsg);
+    processes.delete(serverId);
+    stoppedLogs.set(serverId, [...state.logs]);
+    void persistLogs(serverId, state.logs);
+    void db
+      .update(serversTable)
+      .set({ status: "stopped", port: null, onlinePlayers: 0, updatedAt: new Date() })
+      .where(eq(serversTable.id, serverId));
+  });
+
+  proc.on("error", (err) => {
+    const msg = `[Process error: ${String(err)}]`;
+    pushLog(serverId, state, msg);
+  });
 }
 
-export function sendCommand(serverId: number, command: string): void {
-  const state = states.get(serverId);
-  if (!state || state.status !== "running") return;
-  const cmd = command.trim();
-  addLog(state, `[${ts()}] [Server thread/INFO]: [CONSOLE] /${cmd}`);
-  const parts = cmd.toLowerCase().split(/\s+/);
-  const verb = parts[0];
-  if (verb === "help") {
-    addLog(state, `[${ts()}] [Server thread/INFO]: --- Help (page 1 of 1) ---`);
-    addLog(state, `[${ts()}] [Server thread/INFO]: /list — List online players`);
-    addLog(state, `[${ts()}] [Server thread/INFO]: /say <msg> — Broadcast message`);
-    addLog(state, `[${ts()}] [Server thread/INFO]: /op <player> — Grant operator`);
-    addLog(state, `[${ts()}] [Server thread/INFO]: /deop <player> — Revoke operator`);
-    addLog(state, `[${ts()}] [Server thread/INFO]: /whitelist <add|remove|list> — Whitelist`);
-    addLog(state, `[${ts()}] [Server thread/INFO]: /ban <player> — Ban player`);
-    addLog(state, `[${ts()}] [Server thread/INFO]: /kick <player> — Kick player`);
-    addLog(state, `[${ts()}] [Server thread/INFO]: /seed — Show world seed`);
-    addLog(state, `[${ts()}] [Server thread/INFO]: /time set <day|night|noon> — Set time`);
-    addLog(state, `[${ts()}] [Server thread/INFO]: /weather <clear|rain|thunder> — Set weather`);
-    addLog(state, `[${ts()}] [Server thread/INFO]: /stop — Stop the server`);
-  } else if (verb === "list") {
-    addLog(state, `[${ts()}] [Server thread/INFO]: There are 0 of a max of 20 players online:`);
-  } else if (verb === "say") {
-    const msg = cmd.slice(4).trim();
-    addLog(state, `[${ts()}] [Server thread/INFO]: [Server] ${msg || "(empty message)"}`);
-  } else if (verb === "stop") {
-    stopServer(serverId);
-  } else if (verb === "seed") {
-    addLog(state, `[${ts()}] [Server thread/INFO]: Seed: [${Math.floor(Math.random() * 9_999_999_999)}]`);
-  } else if (verb === "op") {
-    const player = parts[1] ?? "";
-    if (player) addLog(state, `[${ts()}] [Server thread/INFO]: Made ${player} a server operator`);
-    else addLog(state, `[${ts()}] [Server thread/WARN]: Usage: /op <player>`);
-  } else if (verb === "deop") {
-    const player = parts[1] ?? "";
-    if (player) addLog(state, `[${ts()}] [Server thread/INFO]: Made ${player} no longer a server operator`);
-    else addLog(state, `[${ts()}] [Server thread/WARN]: Usage: /deop <player>`);
-  } else if (verb === "kick") {
-    const player = parts[1] ?? "";
-    if (player) addLog(state, `[${ts()}] [Server thread/INFO]: Kicked ${player} from the game`);
-    else addLog(state, `[${ts()}] [Server thread/WARN]: Usage: /kick <player>`);
-  } else if (verb === "ban") {
-    const player = parts[1] ?? "";
-    if (player) addLog(state, `[${ts()}] [Server thread/INFO]: Banned player ${player}`);
-    else addLog(state, `[${ts()}] [Server thread/WARN]: Usage: /ban <player>`);
-  } else if (verb === "whitelist") {
-    const sub = parts[1];
-    if (sub === "list") addLog(state, `[${ts()}] [Server thread/INFO]: There are 0 whitelisted players`);
-    else if (sub === "add") addLog(state, `[${ts()}] [Server thread/INFO]: Added ${parts[2] ?? "?"} to the whitelist`);
-    else if (sub === "remove") addLog(state, `[${ts()}] [Server thread/INFO]: Removed ${parts[2] ?? "?"} from the whitelist`);
-    else addLog(state, `[${ts()}] [Server thread/WARN]: Usage: /whitelist <add|remove|list>`);
-  } else if (verb === "time") {
-    const sub = parts[1];
-    const val = parts[2] ?? sub;
-    if (sub === "set") addLog(state, `[${ts()}] [Server thread/INFO]: Set the time to ${val}`);
-    else if (sub === "query") addLog(state, `[${ts()}] [Server thread/INFO]: The time is 6000`);
-    else addLog(state, `[${ts()}] [Server thread/WARN]: Usage: /time set <day|night|noon|midnight>`);
-  } else if (verb === "weather") {
-    const sub = parts[1] ?? "clear";
-    addLog(state, `[${ts()}] [Server thread/INFO]: Changing to ${sub} weather`);
-  } else if (verb === "difficulty") {
-    const sub = parts[1];
-    if (sub) addLog(state, `[${ts()}] [Server thread/INFO]: Set difficulty to ${sub}`);
-    else addLog(state, `[${ts()}] [Server thread/INFO]: The difficulty is Easy`);
-  } else if (verb === "gamemode") {
-    const sub = parts[1] ?? "";
-    const player = parts[2] ?? "CONSOLE";
-    if (sub) addLog(state, `[${ts()}] [Server thread/INFO]: Set ${player}'s game mode to ${sub} Mode`);
-    else addLog(state, `[${ts()}] [Server thread/WARN]: Usage: /gamemode <survival|creative|adventure|spectator>`);
-  } else {
-    addLog(state, `[${ts()}] [Server thread/WARN]: Unknown or incomplete command, see '/help'`);
-  }
+export function sendCommand(serverId: number, command: string): boolean {
+  const state = processes.get(serverId);
+  if (!state || !state.proc.stdin) return false;
+  state.proc.stdin.write(command.trim() + "\n");
+  return true;
 }
 
 export function stopServer(serverId: number): void {
-  const state = states.get(serverId);
-  if (!state || state.status === "stopped") return;
-
-  if (state.timer) clearInterval(state.timer);
-  state.status = "stopping";
-
-  addLog(state, `[${ts()}] [Server thread/INFO]: Stopping the server`);
-  addLog(state, `[${ts()}] [Server thread/INFO]: Saving players`);
-  addLog(state, `[${ts()}] [Server thread/INFO]: Saving worlds`);
-  addLog(state, `[${ts()}] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:overworld`);
-  addLog(state, `[${ts()}] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved`);
-
+  const state = processes.get(serverId);
+  if (!state) return;
+  if (state.proc.stdin) {
+    state.proc.stdin.write("stop\n");
+  }
   setTimeout(() => {
-    const s = states.get(serverId);
-    if (s) {
-      s.status = "stopped";
-      addLog(s, `[${ts()}] [Server thread/INFO]: Server stopped.`);
+    if (processes.has(serverId)) {
+      state.proc.kill("SIGTERM");
     }
-  }, 1500);
+  }, 10_000);
+}
+
+export function appendLog(serverId: number, line: string): void {
+  const state = processes.get(serverId);
+  if (state) {
+    pushLog(serverId, state, line);
+  } else {
+    const logs = stoppedLogs.get(serverId) ?? [];
+    logs.push(line);
+    stoppedLogs.set(serverId, logs);
+    logEmitter.emit("log", serverId, line);
+  }
+}
+
+export function initDownloading(serverId: number): void {
+  if (!stoppedLogs.has(serverId)) stoppedLogs.set(serverId, []);
+}
+
+export function markError(serverId: number, message: string): void {
+  const line = `[ERROR] ${message}`;
+  appendLog(serverId, line);
+}
+
+export async function resetStaleServers(): Promise<void> {
+  try {
+    await db
+      .update(serversTable)
+      .set({ status: "stopped", port: null, onlinePlayers: 0, updatedAt: new Date() })
+      .where(eq(serversTable.status, "running" as string));
+
+    const allServers = await db.select({ id: serversTable.id }).from(serversTable);
+    await Promise.all(
+      allServers.map(async ({ id }) => {
+        const logs = await loadLogsFromDb(id);
+        if (logs.length > 0) stoppedLogs.set(id, logs);
+      })
+    );
+  } catch { /* non-fatal */ }
 }

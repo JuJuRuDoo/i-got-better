@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { runMigrations } from "@workspace/db";
+import { resetStaleServers } from "./lib/serverProcess.js";
 
 const rawPort = process.env["PORT"];
 
@@ -17,8 +18,10 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 runMigrations()
-  .then(() => {
+  .then(async () => {
     logger.info("Database migrations complete");
+    await resetStaleServers();
+    logger.info("Stale server states reset");
     app.listen(port, (err: Error) => {
       if (err) {
         logger.error({ err }, "Error listening on port");

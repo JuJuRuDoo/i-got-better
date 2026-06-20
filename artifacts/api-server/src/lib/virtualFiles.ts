@@ -1,10 +1,5 @@
-const store = new Map<string, string>();
-const deletedPaths = new Set<string>();
-const customFiles = new Map<string, { name: string; size: number }>();
-
-function key(serverId: number, path: string) {
-  return `${serverId}::${path}`;
-}
+import { db, serverFilesTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
 
 const DEFAULTS: Record<string, string> = {
   "eula.txt": "eula=true",
@@ -20,60 +15,6 @@ const PROTECTED = new Set([
   "mods", "world", "logs", "config", "logs/latest.log",
 ]);
 
-export function getFile(serverId: number, path: string): string | null {
-  const k = key(serverId, path);
-  if (store.has(k)) return store.get(k)!;
-  if (path in DEFAULTS) return DEFAULTS[path];
-  return null;
-}
-
-export function setFile(serverId: number, path: string, content: string) {
-  store.set(key(serverId, path), content);
-}
-
-export function deleteFile(serverId: number, path: string): boolean {
-  if (PROTECTED.has(path)) return false;
-  const k = key(serverId, path);
-  store.delete(k);
-  deletedPaths.add(k);
-  customFiles.delete(k);
-  return true;
-}
-
-export function createFile(serverId: number, path: string, content: string, size?: number) {
-  const k = key(serverId, path);
-  store.set(k, content);
-  const name = path.split("/").pop() ?? path;
-  customFiles.set(k, { name, size: size ?? content.length });
-}
-
-export function renameFile(serverId: number, oldPath: string, newPath: string): boolean {
-  if (PROTECTED.has(oldPath)) return false;
-  const oldKey = key(serverId, oldPath);
-  const content = store.get(oldKey);
-  if (content === undefined) return false;
-  store.delete(oldKey);
-  const newKey = key(serverId, newPath);
-  store.set(newKey, content);
-  const meta = customFiles.get(oldKey);
-  if (meta) {
-    customFiles.delete(oldKey);
-    customFiles.set(newKey, { ...meta, name: newPath.split("/").pop() ?? newPath });
-  }
-  return true;
-}
-
-export function listCustomFiles(serverId: number): Array<{ name: string; path: string; size: number }> {
-  const results: Array<{ name: string; path: string; size: number }> = [];
-  for (const [k, meta] of customFiles.entries()) {
-    if (k.startsWith(`${serverId}::`)) {
-      const path = k.slice(`${serverId}::`.length);
-      results.push({ name: meta.name, path, size: meta.size });
-    }
-  }
-  return results;
-}
-
 export const EDITABLE_PATHS = new Set([
   "eula.txt",
   "server.properties",
@@ -82,3 +23,88 @@ export const EDITABLE_PATHS = new Set([
   "banned-players.json",
   "banned-ips.json",
 ]);
+
+export async function getFile(serverId: number, filePath: string): Promise<string | null> {
+  const rows = await db
+    .select()
+    .from(serverFilesTable)
+    .where(and(eq(serverFilesTable.serverId, serverId), eq(serverFilesTable.path, filePath)))
+    .limit(1);
+  if (rows[0]) return rows[0].content;
+  if (filePath in DEFAULTS) return DEFAULTS[filePath];
+  return null;
+}
+
+export async function setFile(serverId: number, filePath: string, content: string): Promise<void> {
+  const existing = await db
+    .select({ id: serverFilesTable.id })
+    .from(serverFilesTable)
+    .where(and(eq(serverFilesTable.serverId, serverId), eq(serverFilesTable.path, filePath)))
+    .limit(1);
+  if (existing[0]) {
+    await db
+      .update(serverFilesTable)
+      .set({ content, updatedAt: new Date() })
+      .where(eq(serverFilesTable.id, existing[0].id));
+  } else {
+    await db.insert(serverFilesTable).values({ serverId, path: filePath, content });
+  }
+}
+
+export async function deleteFile(serverId: number, filePath: string): Promise<boolean> {
+  if (PROTECTED.has(filePath)) return false;
+  const rows = await db
+    .select({ id: serverFilesTable.id })
+    .from(serverFilesTable)
+    .where(and(eq(serverFilesTable.serverId, serverId), eq(serverFilesTable.path, filePath)))
+    .limit(1);
+  if (!rows[0]) return false;
+  await db.delete(serverFilesTable).where(eq(serverFilesTable.id, rows[0].id));
+  return true;
+}
+
+export async function createFile(serverId: number, filePath: string, content: string): Promise<void> {
+  const existing = await db
+    .select({ id: serverFilesTable.id })
+    .from(serverFilesTable)
+    .where(and(eq(serverFilesTable.serverId, serverId), eq(serverFilesTable.path, filePath)))
+    .limit(1);
+  if (existing[0]) {
+    await db
+      .update(serverFilesTable)
+      .set({ content, updatedAt: new Date() })
+      .where(eq(serverFilesTable.id, existing[0].id));
+  } else {
+    await db.insert(serverFilesTable).values({ serverId, path: filePath, content });
+  }
+}
+
+export async function renameFile(serverId: number, oldPath: string, newPath: string): Promise<boolean> {
+  if (PROTECTED.has(oldPath)) return false;
+  const rows = await db
+    .select()
+    .from(serverFilesTable)
+    .where(and(eq(serverFilesTable.serverId, serverId), eq(serverFilesTable.path, oldPath)))
+    .limit(1);
+  if (!rows[0]) return false;
+  await db
+    .update(serverFilesTable)
+    .set({ path: newPath, updatedAt: new Date() })
+    .where(eq(serverFilesTable.id, rows[0].id));
+  return true;
+}
+
+export async function listCustomFiles(serverId: number): Promise<Array<{ name: string; path: string; size: number }>> {
+  const defaultPaths = new Set([...Object.keys(DEFAULTS), ...PROTECTED]);
+  const rows = await db
+    .select()
+    .from(serverFilesTable)
+    .where(eq(serverFilesTable.serverId, serverId));
+  return rows
+    .filter((r) => !defaultPaths.has(r.path))
+    .map((r) => ({
+      name: r.path.split("/").pop() ?? r.path,
+      path: r.path,
+      size: r.content.length,
+    }));
+}

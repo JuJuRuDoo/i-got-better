@@ -228,6 +228,7 @@ router.post("/:id/start", async (req, res) => {
       motd: server.motd,
       difficulty: (props.difficulty as string) ?? "easy",
       gamemode: (props.gamemode as string) ?? "survival",
+      serverProperties: server.serverProperties ?? null,
     };
 
     const jarInfo = await getJarInfo(server.id);
@@ -502,7 +503,7 @@ router.get("/:id/filemanager", async (req, res) => {
     const mods = await db.select().from(installedModsTable).where(eq(installedModsTable.serverId, id));
 
     const jarInfo = await getJarInfo(id);
-    const customVirtualFiles = virtualFiles.listCustomFiles(id);
+    const customVirtualFiles = await virtualFiles.listCustomFiles(id);
 
     const files = [
       {
@@ -571,7 +572,7 @@ router.get("/:id/filemanager/content", async (req, res) => {
       const lines = serverProcess.getLogs(id);
       content = lines.join("\n");
     } else {
-      content = virtualFiles.getFile(id, filePath);
+      content = await virtualFiles.getFile(id, filePath);
     }
 
     if (content === null) {
@@ -641,7 +642,7 @@ router.put("/:id/filemanager/content", async (req, res) => {
     if (filePath === "server.properties") {
       await db.update(serversTable).set({ serverProperties: content, updatedAt: new Date() }).where(eq(serversTable.id, id));
     } else {
-      virtualFiles.setFile(id, filePath, content);
+      await virtualFiles.setFile(id, filePath, content);
     }
     res.json({ ok: true });
   } catch (err) {
@@ -670,7 +671,7 @@ router.delete("/:id/filemanager", async (req, res) => {
     res.json({ ok: true });
     return;
   }
-  const ok = virtualFiles.deleteFile(id, filePath);
+  const ok = await virtualFiles.deleteFile(id, filePath);
   if (!ok) { res.status(403).json({ error: "File is protected and cannot be deleted" }); return; }
   res.json({ ok: true });
 });
@@ -682,7 +683,7 @@ router.post("/:id/filemanager", async (req, res) => {
   if (!Number.isFinite(id) || !filePath) { res.status(400).json({ error: "Invalid params" }); return; }
   const { content = "" } = req.body as { content?: string };
   try {
-    virtualFiles.createFile(id, filePath, content);
+    await virtualFiles.createFile(id, filePath, content);
     res.json({ ok: true });
   } catch (err) {
     req.log.error(err);
@@ -695,9 +696,35 @@ router.patch("/:id/filemanager/rename", async (req, res) => {
   const id = Number(req.params.id);
   const { oldPath, newPath } = req.body as { oldPath?: string; newPath?: string };
   if (!Number.isFinite(id) || !oldPath || !newPath) { res.status(400).json({ error: "Invalid params" }); return; }
-  const ok = virtualFiles.renameFile(id, oldPath, newPath);
+  const ok = await virtualFiles.renameFile(id, oldPath, newPath);
   if (!ok) { res.status(403).json({ error: "Cannot rename this file" }); return; }
   res.json({ ok: true });
+});
+
+// GET /api/servers/:id/logs/stream — SSE real-time log stream
+router.get("/:id/logs/stream", (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const send = (line: string) => res.write(`data: ${JSON.stringify(line)}\n\n`);
+
+  const existing = serverProcess.getLogs(id);
+  existing.forEach(send);
+
+  const handler = (serverId: number, line: string) => {
+    if (serverId === id) send(line);
+  };
+  serverProcess.logEmitter.on("log", handler);
+
+  req.on("close", () => {
+    serverProcess.logEmitter.off("log", handler);
+  });
 });
 
 // POST /api/servers/:id/command
@@ -708,9 +735,11 @@ router.post("/:id/command", async (req, res) => {
   if (!command || typeof command !== "string" || !command.trim()) {
     res.status(400).json({ error: "Missing command" }); return;
   }
-  const status = serverProcess.getStatus(id);
-  if (status !== "running") { res.status(409).json({ error: "Server is not running" }); return; }
-  serverProcess.sendCommand(id, command.trim());
+  if (serverProcess.getStatus(id) !== "running") {
+    res.status(409).json({ error: "Server is not running" }); return;
+  }
+  const sent = serverProcess.sendCommand(id, command.trim());
+  if (!sent) { res.status(409).json({ error: "Server is not running" }); return; }
   res.json({ ok: true });
 });
 
