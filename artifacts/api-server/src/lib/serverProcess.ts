@@ -40,6 +40,8 @@ export interface ServerConfig {
   serverProperties: string | null;
 }
 
+/* ---------------- JAVA ---------------- */
+
 function resolveJavaBin(): string {
   if (process.env.JAVA_HOME) {
     const p = path.join(process.env.JAVA_HOME, "bin", "java");
@@ -66,10 +68,14 @@ function resolveJavaBin(): string {
   return "java";
 }
 
+/* ---------------- FILES ---------------- */
+
 export function getServerDir(serverId: number): string {
   const dataDir = process.env.DATA_DIR ?? "./server-data";
   return path.join(dataDir, "servers", String(serverId));
 }
+
+/* ---------------- LOGGING ---------------- */
 
 function pushLog(serverId: number, state: ProcessState, line: string) {
   const trimmed = line.replace(/\r/g, "").trimEnd();
@@ -80,6 +86,8 @@ function pushLog(serverId: number, state: ProcessState, line: string) {
 
   logEmitter.emit("log", serverId, trimmed);
 }
+
+/* ---------------- PROPERTIES ---------------- */
 
 function buildServerProperties(cfg: ServerConfig): string {
   const base = cfg.serverProperties ?? "";
@@ -99,17 +107,21 @@ function buildServerProperties(cfg: ServerConfig): string {
   props["gamemode"] = cfg.gamemode;
   props["enable-rcon"] = "false";
   props["online-mode"] = "false";
-
-  if (cfg.motd) props["motd"] = cfg.motd;
-
-  // IMPORTANT FIX
   props["server-port"] = String(port);
   props["server-ip"] = "";
 
-  return "# server.properties\n" +
-    Object.entries(props).map(([k, v]) => `${k}=${v}`).join("\n") +
-    "\n";
+  if (cfg.motd) props["motd"] = cfg.motd;
+
+  return (
+    "# server.properties\n" +
+    Object.entries(props)
+      .map(([k, v]) => `${k}=${v}`)
+      .join("\n") +
+    "\n"
+  );
 }
+
+/* ---------------- START SERVER ---------------- */
 
 export async function startServer(serverId: number, cfg: ServerConfig): Promise<void> {
   if (processes.has(serverId)) return;
@@ -128,9 +140,7 @@ export async function startServer(serverId: number, cfg: ServerConfig): Promise<
     "--nogui",
   ];
 
-  const javaBin = resolveJavaBin();
-
-  const proc = spawn(javaBin, javaArgs, {
+  const proc = spawn(resolveJavaBin(), javaArgs, {
     cwd: dir,
     stdio: ["pipe", "pipe", "pipe"],
     env: process.env,
@@ -147,12 +157,12 @@ export async function startServer(serverId: number, cfg: ServerConfig): Promise<
 
   const port = getPort(serverId);
 
-  // Store port in DB (CRITICAL for TCP routing)
-  await db.update(serversTable)
+  await db
+    .update(serversTable)
     .set({
       status: "running",
       port,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     })
     .where(eq(serversTable.id, serverId));
 
@@ -178,11 +188,19 @@ export async function startServer(serverId: number, cfg: ServerConfig): Promise<
     processes.delete(serverId);
     stoppedLogs.set(serverId, [...state.logs]);
 
-    await db.update(serversTable)
-      .set({ status: "stopped", port: null, onlinePlayers: 0, updatedAt: new Date() })
+    await db
+      .update(serversTable)
+      .set({
+        status: "stopped",
+        port: null,
+        onlinePlayers: 0,
+        updatedAt: new Date(),
+      })
       .where(eq(serversTable.id, serverId));
   });
 }
+
+/* ---------------- COMMANDS ---------------- */
 
 export function sendCommand(serverId: number, command: string): boolean {
   const state = processes.get(serverId);
@@ -203,4 +221,47 @@ export function stopServer(serverId: number): void {
       state.proc.kill("SIGTERM");
     }
   }, 10000);
+}
+
+/* ---------------- REQUIRED EXPORTS (FIX BUILD) ---------------- */
+
+export function getStatus(serverId: number): "running" | "stopped" {
+  return processes.has(serverId) ? "running" : "stopped";
+}
+
+export function getLogs(serverId: number): string[] {
+  const running = processes.get(serverId);
+  return running ? running.logs : stoppedLogs.get(serverId) ?? [];
+}
+
+export function appendLog(serverId: number, line: string): void {
+  const state = processes.get(serverId);
+  if (state) pushLog(serverId, state, line);
+  else {
+    const logs = stoppedLogs.get(serverId) ?? [];
+    logs.push(line);
+    stoppedLogs.set(serverId, logs);
+  }
+}
+
+export function markError(serverId: number, message: string): void {
+  appendLog(serverId, `[ERROR] ${message}`);
+}
+
+export function initDownloading(serverId: number): void {
+  if (!stoppedLogs.has(serverId)) stoppedLogs.set(serverId, []);
+}
+
+export async function resetStaleServers(): Promise<void> {
+  try {
+    await db
+      .update(serversTable)
+      .set({
+        status: "stopped",
+        port: null,
+        onlinePlayers: 0,
+        updatedAt: new Date(),
+      })
+      .where(eq(serversTable.status, "running" as any));
+  } catch {}
 }
