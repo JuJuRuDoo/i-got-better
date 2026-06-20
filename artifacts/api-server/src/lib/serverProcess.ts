@@ -1,6 +1,6 @@
 import { spawn, ChildProcess } from "child_process";
 import { EventEmitter } from "events";
-import { writeFileSync, mkdirSync } from "fs";
+import { writeFileSync, mkdirSync, existsSync } from "fs";
 import path from "path";
 import { db, serverLogsTable, serversTable } from "@workspace/db";
 import { eq, asc } from "drizzle-orm";
@@ -30,6 +30,28 @@ export interface ServerConfig {
   difficulty: string;
   gamemode: string;
   serverProperties: string | null;
+}
+
+function resolveJavaBin(): string {
+  if (process.env.JAVA_HOME) {
+    const p = path.join(process.env.JAVA_HOME, "bin", "java");
+    if (existsSync(p)) return p;
+  }
+  const pathDirs = (process.env.PATH ?? "").split(":");
+  for (const dir of pathDirs) {
+    const p = path.join(dir, "java");
+    if (existsSync(p)) return p;
+  }
+  const fallbacks = [
+    "/root/.nix-profile/bin/java",
+    "/nix/var/nix/profiles/default/bin/java",
+    "/usr/lib/jvm/java-21/bin/java",
+    "/usr/bin/java",
+  ];
+  for (const p of fallbacks) {
+    if (existsSync(p)) return p;
+  }
+  return "java";
 }
 
 export function getServerDir(serverId: number): string {
@@ -115,17 +137,14 @@ export async function startServer(serverId: number, cfg: ServerConfig): Promise<
     "--nogui",
   ];
 
-  const javaCmd = process.env.JAVA_HOME
-    ? `"${process.env.JAVA_HOME}/bin/java"`
-    : "java";
-  const shellCmd = `${javaCmd} ${javaArgs.map((a) => `"${a}"`).join(" ")}`;
+  const javaBin = resolveJavaBin();
 
   let proc: ChildProcess;
   try {
-    proc = spawn(shellCmd, [], {
+    proc = spawn(javaBin, javaArgs, {
       cwd: dir,
       stdio: ["pipe", "pipe", "pipe"],
-      shell: true,
+      env: process.env,
     });
   } catch (err) {
     const msg = `[ERROR] Failed to spawn java: ${String(err)}. Is Java installed?`;
