@@ -7,7 +7,8 @@ import time
 import os
 from datetime import datetime
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from aiohttp_socks import ProxyConnector
 from python_socks.async_.asyncio import Proxy
 import uvicorn
@@ -22,7 +23,7 @@ _INVITE_LENGTHS = [6,   7,   8,   9,   10]
 _INVITE_WEIGHTS = [3,   10,  85,  1,   1]
 
 DISCORD_API     = "https://discord.com/api/v10/invites/{code}?with_counts=true"
-REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=1.5, connect=0.8)  # Replit: low latency DC, be aggressive
+REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=1.5, connect=0.8)
 
 _REQ_HEADERS = {
     "User-Agent": (
@@ -76,12 +77,10 @@ PROXY_SOURCES = {
         "https://raw.githubusercontent.com/prxchk/proxy-list/main/all.txt",
     ],
     "litport": [
-        # 80 pages × 5000 proxies = up to 400,000 proxies from litport
         f"https://litport.net/api/free-proxy?limit=5000&sortBy=pingAt_desc&page={p}&format=txt"
         for p in range(1, 81)
     ],
     "geonode": [
-        # 21 pages × 500 proxies = up to 10,500 proxies from geonode
         f"https://proxylist.geonode.com/api/proxy-list?page={p}&limit=500&sort_by=responseTime&sort_type=asc"
         for p in range(1, 22)
     ],
@@ -95,27 +94,25 @@ PROXY_SOURCES = {
 }
 
 PROXY_CACHE_FILE           = "proxies.txt"
-PROXY_VALIDATE_TO          = 1.0      # Replit DC: low latency, can afford tight timeout
-PROXY_VALIDATE_CONCURRENCY = 5000     # Replit: no ISP limits, max concurrency
-P1_CONCURRENCY             = 10000    # Replit: TCP SYN flood at full speed
-MAX_WORKERS_LIMIT          = 3000     # Replit: much higher worker ceiling
+PROXY_VALIDATE_TO          = 1.0
+PROXY_VALIDATE_CONCURRENCY = 5000
+P1_CONCURRENCY             = 10000
+MAX_WORKERS_LIMIT          = 3000
 
 # ─── Shared State ──────────────────────────────────────────────────────────────
 
 class AppState:
     def __init__(self):
-        # Scan
         self.running      = False
         self.checked      = 0
         self.valid        = 0
         self.start_time   = 0.0
         self.results: list[dict] = []
         self.stop_event   = asyncio.Event()
-        # Proxy
         self.proxy_urls: list[str] = []
         self.proxy_sessions: list[aiohttp.ClientSession] = []
         self.direct_session: aiohttp.ClientSession | None = None
-        self.proxy_status  = "none"   # none | fetching | validating | ready | error
+        self.proxy_status  = "none"
         self.proxy_p1_done = 0
         self.proxy_p1_total= 0
         self.proxy_p2_done = 0
@@ -123,10 +120,8 @@ class AppState:
         self.proxy_working = 0
         self.fetch_task: asyncio.Task | None = None
 
-
 state = AppState()
 ws_clients: list[WebSocket] = []
-
 
 async def broadcast(msg: dict):
     dead = []
@@ -139,11 +134,9 @@ async def broadcast(msg: dict):
         try: ws_clients.remove(ws)
         except ValueError: pass
 
-
 def generate_code() -> str:
     k = random.choices(_INVITE_LENGTHS, weights=_INVITE_WEIGHTS, k=1)[0]
     return "".join(random.choices(_CHARS, k=k))
-
 
 # ─── Proxy Manager ─────────────────────────────────────────────────────────────
 
@@ -182,8 +175,8 @@ async def _fetch_one_source(
             elif category == "geonode":
                 data = await r.json(content_type=None)
                 for item in data.get("data", []):
-                    ip   = item.get("ip")
-                    port = item.get("port")
+                    ip    = item.get("ip")
+                    port  = item.get("port")
                     protos = item.get("protocols", [])
                     if ip and port and protos:
                         proto = protos[0]
@@ -200,10 +193,10 @@ async def _fetch_one_source(
                         port = tds[1].strip()
                         if re.match(r"^\d{1,3}(?:\.\d{1,3}){3}$", ip) and port.isdigit():
                             row_l = row.lower()
-                            if "socks5" in row_l:           proto = "socks5"
-                            elif "socks4" in row_l:         proto = "socks4"
-                            elif "yes" in tds[6].lower():   proto = "http"
-                            else:                           proto = "http"
+                            if "socks5" in row_l:         proto = "socks5"
+                            elif "socks4" in row_l:       proto = "socks4"
+                            elif "yes" in tds[6].lower(): proto = "http"
+                            else:                         proto = "http"
                             out.append(f"{proto}://{ip}:{port}")
 
             elif category == "litport":
@@ -237,7 +230,6 @@ async def fetch_all_proxies() -> list[str]:
 
 
 async def _phase1_tcp_ping(proxy_urls: list[str]) -> list[str]:
-    """TCP SYN to proxy port — knocks out dead proxies in milliseconds."""
     alive: list[str] = []
     sem = asyncio.Semaphore(P1_CONCURRENCY)
     state.proxy_p1_total = len(proxy_urls)
@@ -275,7 +267,6 @@ async def _phase1_tcp_ping(proxy_urls: list[str]) -> list[str]:
 
 
 async def _phase2_socks_handshake(alive: list[str]) -> list[str]:
-    """Full SOCKS/HTTP handshake through alive proxies → 1.1.1.1:80."""
     working: list[str] = []
     sem = asyncio.Semaphore(PROXY_VALIDATE_CONCURRENCY)
     state.proxy_p2_total = len(alive)
@@ -312,14 +303,13 @@ async def _phase2_socks_handshake(alive: list[str]) -> list[str]:
 
 
 async def _build_proxy_sessions(proxy_urls: list[str]) -> None:
-    """Build one aiohttp session per proxy URL with keepalive enabled."""
     await _close_proxy_sessions()
     sessions: list[aiohttp.ClientSession] = []
     for url in proxy_urls:
         try:
             connector = ProxyConnector.from_url(
                 url,
-                limit=200,           # Replit: more connections per proxy
+                limit=200,
                 ttl_dns_cache=600,
                 force_close=False,
                 enable_cleanup_closed=True,
@@ -330,7 +320,7 @@ async def _build_proxy_sessions(proxy_urls: list[str]) -> None:
     state.proxy_sessions = sessions
     state.proxy_urls     = proxy_urls
     state.direct_session = aiohttp.ClientSession(
-        connector=aiohttp.TCPConnector(limit=0, ttl_dns_cache=600, force_close=False)  # 0 = unlimited on Replit
+        connector=aiohttp.TCPConnector(limit=0, ttl_dns_cache=600, force_close=False)
     )
 
 
@@ -348,7 +338,6 @@ async def _close_proxy_sessions() -> None:
 
 
 def _session_for(worker_idx: int) -> tuple[str, aiohttp.ClientSession]:
-    """Return the session pinned to this worker index."""
     if not state.proxy_sessions:
         return "direct", state.direct_session
     i = worker_idx % len(state.proxy_sessions)
@@ -378,10 +367,8 @@ def _save_cache(proxies: list[str]) -> None:
 
 
 async def _do_full_proxy_pipeline(skip_validation: bool = False):
-    """Fetch → Phase-1 TCP → Phase-2 SOCKS → build sessions."""
     state.proxy_status = "fetching"
     await broadcast({"type": "proxy_status", "status": "fetching", "count": 0, "detail": "Downloading proxy lists…"})
-
     try:
         raw = await fetch_all_proxies()
         total = len(raw)
@@ -417,7 +404,6 @@ async def _do_full_proxy_pipeline(skip_validation: bool = False):
         state.proxy_status = "error"
         await broadcast({"type": "proxy_status", "status": "error", "count": 0, "detail": str(e)})
 
-
 # ─── Invite Checker ────────────────────────────────────────────────────────────
 
 async def check_invite(
@@ -446,7 +432,6 @@ async def check_invite(
     except Exception as e:
         return {"code": code, "valid": False, "status": 0, "error": type(e).__name__, "proxy": proxy_url}
 
-
 # ─── Scan Engine ───────────────────────────────────────────────────────────────
 
 async def _run_scan(workers: int, limit: int):
@@ -454,7 +439,6 @@ async def _run_scan(workers: int, limit: int):
     seen: set[str] = set()
     seen_lock = asyncio.Lock()
 
-    # Use proxy sessions if available, else build a direct session pool
     use_proxies = bool(state.proxy_sessions)
     if not use_proxies:
         connector = aiohttp.TCPConnector(limit=workers + 20, ttl_dns_cache=300)
@@ -463,7 +447,7 @@ async def _run_scan(workers: int, limit: int):
         _direct_pool = None
 
     last_broadcast = time.time()
-    _BATCH = 500  # Replit: larger batch = fewer lock grabs at high throughput
+    _BATCH = 500
 
     async def worker(idx: int):
         nonlocal last_broadcast
@@ -509,7 +493,6 @@ async def _run_scan(workers: int, limit: int):
                 state.results.append(entry)
                 await broadcast({"type": "hit", "result": entry})
 
-            # Rotate proxy on 429
             if r.get("status") == 429 and use_proxies:
                 proxy_idx = (proxy_idx + workers) % max(len(state.proxy_sessions), 1)
 
@@ -525,7 +508,7 @@ async def _run_scan(workers: int, limit: int):
                 })
                 last_broadcast = now
 
-            await asyncio.sleep(0)  # Replit has no ISP throttling — yield only, no delay
+            await asyncio.sleep(0)
 
     tasks = [asyncio.create_task(worker(i)) for i in range(workers)]
     try:
@@ -550,13 +533,11 @@ async def _run_scan(workers: int, limit: int):
             "rate":    round(rate, 1),
         })
 
-
 # ─── FastAPI Routes ─────────────────────────────────────────────────────────────
 
 @app.get("/")
 async def root():
     return FileResponse("static/index.html")
-
 
 @app.get("/api/status")
 async def get_status():
@@ -571,7 +552,6 @@ async def get_status():
         "proxy_count":  len(state.proxy_sessions),
         "results":      state.results[-100:],
     }
-
 
 @app.post("/api/check")
 async def check_codes(body: dict):
@@ -600,7 +580,6 @@ async def check_codes(body: dict):
 
     return {"results": [r for r in results if isinstance(r, dict)]}
 
-
 @app.post("/api/proxies/fetch")
 async def trigger_proxy_fetch(body: dict = {}):
     if state.proxy_status in ("fetching", "validating"):
@@ -610,7 +589,6 @@ async def trigger_proxy_fetch(body: dict = {}):
         state.fetch_task.cancel()
     state.fetch_task = asyncio.create_task(_do_full_proxy_pipeline(skip_validation=skip))
     return {"message": "Fetch started"}
-
 
 @app.post("/api/proxies/load_cache")
 async def load_proxy_cache():
@@ -623,7 +601,6 @@ async def load_proxy_cache():
     await broadcast({"type": "proxy_status", "status": "ready", "count": len(cached), "detail": f"Loaded {len(cached):,} cached proxies"})
     return {"count": len(cached)}
 
-
 @app.post("/api/proxies/clear")
 async def clear_proxies():
     await _close_proxy_sessions()
@@ -631,7 +608,6 @@ async def clear_proxies():
     state.proxy_working = 0
     await broadcast({"type": "proxy_status", "status": "none", "count": 0, "detail": ""})
     return {"message": "Proxies cleared"}
-
 
 @app.post("/api/scan/start")
 async def start_scan(body: dict):
@@ -650,13 +626,11 @@ async def start_scan(body: dict):
     asyncio.create_task(_run_scan(workers, limit))
     return {"message": "Scan started", "workers": workers}
 
-
 @app.post("/api/scan/stop")
 async def stop_scan():
     state.stop_event.set()
     state.running = False
     return {"message": "Stopped"}
-
 
 @app.websocket("/ws")
 async def ws_endpoint(websocket: WebSocket):
@@ -685,8 +659,8 @@ async def ws_endpoint(websocket: WebSocket):
         try: ws_clients.remove(websocket)
         except ValueError: pass
 
-
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=5000, log_level="warning")
+    port = int(os.environ.get("PORT", 5000))
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
