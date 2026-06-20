@@ -4,7 +4,7 @@
     "pnpm": "10.26.1"
   },
   "build": {
-    "cmd": "pnpm run build:railway" 
+    "cmd": "pnpm run build:railway"
   },
   "start": {
     "cmd": "node artifacts/api-server/dist/index.mjs"
