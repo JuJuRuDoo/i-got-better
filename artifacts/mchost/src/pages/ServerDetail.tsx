@@ -6,15 +6,14 @@ import type {
   ModSearchResult,
   PluginSearchResult,
   ModUpdateInfo,
-  ServerLogs,
   ServerUpdateServerType,
 } from "@workspace/api-client-react";
+
 import {
   useGetServer,
   useStartServer,
   useStopServer,
   useDeleteServer,
-  useGetServerLogs,
   useListServerMods,
   useInstallMod,
   useUninstallMod,
@@ -30,10 +29,10 @@ import {
   getListServersQueryKey,
   getGetServersSummaryQueryKey,
   getListServerModsQueryKey,
-  getGetServerLogsQueryKey,
   getListModUpdatesQueryKey,
   getListLoaderVersionsQueryKey,
 } from "@workspace/api-client-react";
+
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -213,9 +212,42 @@ export default function ServerDetail() {
     query: { enabled: !!server?.id && activeTab === "overview", refetchInterval: 60000 } as AnyQueryOpts,
   }) as { data: ModUpdateInfo[] };
 
-  const { data: serverLogs } = useGetServerLogs(server?.id ?? 0, {
-    query: { enabled: !!server?.id, refetchInterval: (activeTab === "logs" || activeTab === "console") ? 1500 : false } as AnyQueryOpts,
-  }) as { data: ServerLogs | undefined };
+  const [sseLines, setSseLines] = useState<string[]>([]);
+  const [sseConnected, setSseConnected] = useState(false);
+
+  useEffect(() => {
+    if (!serverId) return;
+    setSseLines([]);
+    setSseConnected(false);
+    let es: EventSource | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let closed = false;
+
+    const connect = () => {
+      if (closed) return;
+      es = new EventSource(`/api/servers/${serverId}/logs/stream`);
+      es.onopen = () => setSseConnected(true);
+      es.onmessage = (e) => {
+        try {
+          const line = JSON.parse(e.data as string) as string;
+          setSseLines((prev) => [...prev, line].slice(-2000));
+        } catch {}
+      };
+      es.onerror = () => {
+        setSseConnected(false);
+        es?.close();
+        if (!closed) retryTimer = setTimeout(connect, 3000);
+      };
+    };
+    connect();
+
+    return () => {
+      closed = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      es?.close();
+      setSseConnected(false);
+    };
+  }, [serverId]);
 
   const settingsLoaderParams = {
     loader: settingsForm.serverType as "forge" | "fabric" | "neoforge" | "quilt",
@@ -427,7 +459,7 @@ export default function ServerDetail() {
     if (autoScroll && logsEndRef.current) {
       logsEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [serverLogs?.lines, autoScroll]);
+  }, [sseLines, autoScroll]);
 
   const handleLogsScroll = useCallback(() => {
     const el = logsContainerRef.current;
@@ -1072,10 +1104,9 @@ export default function ServerDetail() {
             <div className="flex items-center justify-between">
               <h2 className="font-mono text-sm text-muted-foreground">Server Console</h2>
               <div className="flex items-center gap-2">
-                <Button size="sm" variant="ghost" className="font-mono text-xs gap-1"
-                  onClick={() => qc.invalidateQueries({ queryKey: getGetServerLogsQueryKey(server.id) })}>
-                  <RefreshCw className="w-3.5 h-3.5" />Refresh
-                </Button>
+                <span className={`font-mono text-xs px-2 py-1 rounded border ${sseConnected ? "border-primary/30 bg-primary/10 text-primary" : "border-yellow-500/30 bg-yellow-500/10 text-yellow-400"}`}>
+                  {sseConnected ? "● live" : "○ connecting..."}
+                </span>
                 <button onClick={() => setAutoScroll((p) => !p)}
                   className={`font-mono text-xs px-2 py-1 rounded border transition-colors ${
                     autoScroll ? "border-primary/30 bg-primary/10 text-primary" : "border-border text-muted-foreground"
@@ -1088,13 +1119,13 @@ export default function ServerDetail() {
               ref={logsContainerRef}
               onScroll={handleLogsScroll}
               className="h-[calc(100vh-220px)] overflow-y-auto rounded-lg border border-border bg-black/80 p-3 font-mono text-xs">
-              {!serverLogs?.lines || serverLogs.lines.length === 0 ? (
+              {sseLines.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-muted-foreground">
                   <Terminal className="w-8 h-8 mr-2" />
-                  {server.status === "running" ? "Waiting for logs..." : "Server is not running"}
+                  {server.status === "running" ? "Waiting for logs..." : "Server is not running — start it to see logs"}
                 </div>
               ) : (
-                serverLogs.lines.map((line, i) => (
+                sseLines.map((line, i) => (
                   <div key={i} className={`leading-5 py-0.5 ${
                     line.includes("ERROR") || line.includes("Exception") ? "text-red-400"
                       : line.includes("WARN") ? "text-yellow-400"
@@ -1412,16 +1443,14 @@ export default function ServerDetail() {
                 const el = (consoleEndRef as unknown as React.RefObject<HTMLDivElement>).current;
                 if (el) { /* keep console scroll natural */ }
               }}>
-              {!serverLogs?.lines?.length ? (
-                <div className="text-muted-foreground/50 italic">No output yet. Start the server to see logs.</div>
+              {sseLines.length === 0 ? (
+                <div className="text-muted-foreground/50 italic">No output yet. Start the server to see real console output.</div>
               ) : (
-                serverLogs.lines.map((line, i) => {
-                  const isWarn = line.includes("/WARN");
-                  const isError = line.includes("/ERROR") || line.includes("Exception") || line.includes("FATAL");
-                  const isConsoleCmd = line.includes("[CONSOLE]");
+                sseLines.map((line, i) => {
+                  const isWarn = line.includes("WARN");
+                  const isError = line.includes("ERROR") || line.includes("Exception") || line.includes("FATAL");
                   return (
                     <div key={i} className={`whitespace-pre-wrap break-all ${
-                      isConsoleCmd ? "text-primary font-semibold" :
                       isError ? "text-destructive" :
                       isWarn ? "text-yellow-400" :
                       "text-muted-foreground"
