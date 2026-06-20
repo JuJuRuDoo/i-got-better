@@ -130,6 +130,15 @@ export const InstalledModSource = {
   curseforge: 'curseforge',
   modrinth: 'modrinth',
   upload: 'upload',
+  hangar: 'hangar',
+} as const;
+
+export type InstalledModCategory = typeof InstalledModCategory[keyof typeof InstalledModCategory];
+
+
+export const InstalledModCategory = {
+  mod: 'mod',
+  plugin: 'plugin',
 } as const;
 
 export interface InstalledMod {
@@ -141,6 +150,7 @@ export interface InstalledMod {
   source: InstalledModSource;
   /** @nullable */
   iconUrl: string | null;
+  category: InstalledModCategory;
   installedAt: string;
 }
 
@@ -151,6 +161,15 @@ export const ModInstallInputSource = {
   curseforge: 'curseforge',
   modrinth: 'modrinth',
   upload: 'upload',
+  hangar: 'hangar',
+} as const;
+
+export type ModInstallInputCategory = typeof ModInstallInputCategory[keyof typeof ModInstallInputCategory];
+
+
+export const ModInstallInputCategory = {
+  mod: 'mod',
+  plugin: 'plugin',
 } as const;
 
 export interface ModInstallInput {
@@ -159,6 +178,33 @@ export interface ModInstallInput {
   modVersion: string;
   source: ModInstallInputSource;
   iconUrl?: string;
+  category?: ModInstallInputCategory;
+}
+
+export type PluginSearchResultSource = typeof PluginSearchResultSource[keyof typeof PluginSearchResultSource];
+
+
+export const PluginSearchResultSource = {
+  modrinth: 'modrinth',
+  hangar: 'hangar',
+} as const;
+
+export interface PluginSearchResult {
+  id: string;
+  name: string;
+  description: string;
+  author: string;
+  /** @nullable */
+  iconUrl: string | null;
+  downloadCount: number;
+  source: PluginSearchResultSource;
+  /** @nullable */
+  latestVersion: string | null;
+  loaders: string[];
+  gameVersions: string[];
+  categories: string[];
+  /** @nullable */
+  websiteUrl: string | null;
 }
 
 export type ModSearchResultSource = typeof ModSearchResultSource[keyof typeof ModSearchResultSource];
@@ -259,6 +305,21 @@ export interface SlugCheck {
   slug: string;
   available: boolean;
 }
+
+export type SearchPluginsParams = {
+query?: string;
+source?: SearchPluginsSource;
+limit?: number;
+};
+
+export type SearchPluginsSource = typeof SearchPluginsSource[keyof typeof SearchPluginsSource];
+
+
+export const SearchPluginsSource = {
+  modrinth: 'modrinth',
+  hangar: 'hangar',
+  all: 'all',
+} as const;
 
 export type SearchModsParams = {
 query: string;

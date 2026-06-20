@@ -32,7 +32,9 @@ import type {
   ModInstallInput,
   ModSearchResult,
   ModUpdateInfo,
+  PluginSearchResult,
   SearchModsParams,
+  SearchPluginsParams,
   ServerInput,
   ServerLogs,
   ServerUpdate,
@@ -1077,6 +1079,167 @@ export function useGetServersSummary<TData = Awaited<ReturnType<typeof getServer
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetServersSummaryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSearchPluginsUrl = (params?: SearchPluginsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/plugins/search?${stringifiedParams}` : `/api/plugins/search`
+}
+
+/**
+ * @summary Search plugins from Modrinth and Hangar
+ */
+export const searchPlugins = async (params?: SearchPluginsParams, options?: RequestInit): Promise<PluginSearchResult[]> => {
+
+  return customFetch<PluginSearchResult[]>(getSearchPluginsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSearchPluginsQueryKey = (params?: SearchPluginsParams,) => {
+    return [
+    `/api/plugins/search`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchPluginsQueryOptions = <TData = Awaited<ReturnType<typeof searchPlugins>>, TError = ErrorType<unknown>>(params?: SearchPluginsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchPlugins>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchPluginsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchPlugins>>> = ({ signal }) => searchPlugins(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchPlugins>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type SearchPluginsQueryResult = NonNullable<Awaited<ReturnType<typeof searchPlugins>>>
+export type SearchPluginsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Search plugins from Modrinth and Hangar
+ */
+
+export function useSearchPlugins<TData = Awaited<ReturnType<typeof searchPlugins>>, TError = ErrorType<unknown>>(
+ params?: SearchPluginsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchPlugins>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getSearchPluginsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetFeaturedPluginsUrl = () => {
+
+
+
+
+  return `/api/plugins/featured`
+}
+
+/**
+ * @summary Get featured plugins from Modrinth and Hangar
+ */
+export const getFeaturedPlugins = async ( options?: RequestInit): Promise<PluginSearchResult[]> => {
+
+  return customFetch<PluginSearchResult[]>(getGetFeaturedPluginsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFeaturedPluginsQueryKey = () => {
+    return [
+    `/api/plugins/featured`
+    ] as const;
+    }
+
+
+export const getGetFeaturedPluginsQueryOptions = <TData = Awaited<ReturnType<typeof getFeaturedPlugins>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFeaturedPlugins>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFeaturedPluginsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFeaturedPlugins>>> = ({ signal }) => getFeaturedPlugins({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFeaturedPlugins>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFeaturedPluginsQueryResult = NonNullable<Awaited<ReturnType<typeof getFeaturedPlugins>>>
+export type GetFeaturedPluginsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get featured plugins from Modrinth and Hangar
+ */
+
+export function useGetFeaturedPlugins<TData = Awaited<ReturnType<typeof getFeaturedPlugins>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFeaturedPlugins>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFeaturedPluginsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

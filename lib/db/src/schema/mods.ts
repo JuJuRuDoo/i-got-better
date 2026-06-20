@@ -17,6 +17,7 @@ export const installedModsTable = pgTable("installed_mods", {
   fileSize: integer("file_size"),
   downloadUrl: text("download_url"),
   downloadStatus: text("download_status").notNull().default("pending"),
+  category: text("category").notNull().default("mod"),
   installedAt: timestamp("installed_at").notNull().defaultNow(),
 });
 

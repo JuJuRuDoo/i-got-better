@@ -1,5 +1,5 @@
 import type { QueryKey, UseMutationOptions, UseMutationResult, UseQueryOptions, UseQueryResult } from '@tanstack/react-query';
-import type { CheckSlugParams, ErrorResponse, GetFeaturedModsParams, HealthStatus, InstalledMod, ListLoaderVersionsParams, LoaderVersion, MinecraftServer, MinecraftVersion, ModInstallInput, ModSearchResult, ModUpdateInfo, SearchModsParams, ServerInput, ServerLogs, ServerUpdate, ServersSummary, SlugCheck } from './api.schemas';
+import type { CheckSlugParams, ErrorResponse, GetFeaturedModsParams, HealthStatus, InstalledMod, ListLoaderVersionsParams, LoaderVersion, MinecraftServer, MinecraftVersion, ModInstallInput, ModSearchResult, ModUpdateInfo, PluginSearchResult, SearchModsParams, SearchPluginsParams, ServerInput, ServerLogs, ServerUpdate, ServersSummary, SlugCheck } from './api.schemas';
 import { customFetch } from '../custom-fetch';
 import type { ErrorType, BodyType } from '../custom-fetch';
 type AwaitedInput<T> = PromiseLike<T> | T;
@@ -360,6 +360,52 @@ export type GetServersSummaryQueryError = ErrorType<unknown>;
  */
 export declare function useGetServersSummary<TData = Awaited<ReturnType<typeof getServersSummary>>, TError = ErrorType<unknown>>(options?: {
     query?: UseQueryOptions<Awaited<ReturnType<typeof getServersSummary>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+};
+export declare const getSearchPluginsUrl: (params?: SearchPluginsParams) => string;
+/**
+ * @summary Search plugins from Modrinth and Hangar
+ */
+export declare const searchPlugins: (params?: SearchPluginsParams, options?: RequestInit) => Promise<PluginSearchResult[]>;
+export declare const getSearchPluginsQueryKey: (params?: SearchPluginsParams) => readonly ["/api/plugins/search", ...SearchPluginsParams[]];
+export declare const getSearchPluginsQueryOptions: <TData = Awaited<ReturnType<typeof searchPlugins>>, TError = ErrorType<unknown>>(params?: SearchPluginsParams, options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof searchPlugins>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseQueryOptions<Awaited<ReturnType<typeof searchPlugins>>, TError, TData> & {
+    queryKey: QueryKey;
+};
+export type SearchPluginsQueryResult = NonNullable<Awaited<ReturnType<typeof searchPlugins>>>;
+export type SearchPluginsQueryError = ErrorType<unknown>;
+/**
+ * @summary Search plugins from Modrinth and Hangar
+ */
+export declare function useSearchPlugins<TData = Awaited<ReturnType<typeof searchPlugins>>, TError = ErrorType<unknown>>(params?: SearchPluginsParams, options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof searchPlugins>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+};
+export declare const getGetFeaturedPluginsUrl: () => string;
+/**
+ * @summary Get featured plugins from Modrinth and Hangar
+ */
+export declare const getFeaturedPlugins: (options?: RequestInit) => Promise<PluginSearchResult[]>;
+export declare const getGetFeaturedPluginsQueryKey: () => readonly ["/api/plugins/featured"];
+export declare const getGetFeaturedPluginsQueryOptions: <TData = Awaited<ReturnType<typeof getFeaturedPlugins>>, TError = ErrorType<unknown>>(options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getFeaturedPlugins>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+}) => UseQueryOptions<Awaited<ReturnType<typeof getFeaturedPlugins>>, TError, TData> & {
+    queryKey: QueryKey;
+};
+export type GetFeaturedPluginsQueryResult = NonNullable<Awaited<ReturnType<typeof getFeaturedPlugins>>>;
+export type GetFeaturedPluginsQueryError = ErrorType<unknown>;
+/**
+ * @summary Get featured plugins from Modrinth and Hangar
+ */
+export declare function useGetFeaturedPlugins<TData = Awaited<ReturnType<typeof getFeaturedPlugins>>, TError = ErrorType<unknown>>(options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getFeaturedPlugins>>, TError, TData>;
     request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

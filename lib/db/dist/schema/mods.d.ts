@@ -190,6 +190,23 @@ export declare const installedModsTable: import("drizzle-orm/pg-core").PgTableWi
             identity: undefined;
             generated: undefined;
         }, {}, {}>;
+        category: import("drizzle-orm/pg-core").PgColumn<{
+            name: "category";
+            tableName: "installed_mods";
+            dataType: "string";
+            columnType: "PgText";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: true;
+            isPrimaryKey: false;
+            isAutoincrement: false;
+            hasRuntimeDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+            identity: undefined;
+            generated: undefined;
+        }, {}, {}>;
         installedAt: import("drizzle-orm/pg-core").PgColumn<{
             name: "installed_at";
             tableName: "installed_mods";
@@ -221,6 +238,7 @@ export declare const insertModSchema: z.ZodObject<{
     fileSize: z.ZodOptional<z.ZodNullable<z.ZodInt>>;
     downloadUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     downloadStatus: z.ZodOptional<z.ZodString>;
+    category: z.ZodOptional<z.ZodString>;
 }, {
     out: {};
     in: {};

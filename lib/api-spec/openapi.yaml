@@ -338,6 +338,56 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServersSummary"
 
+  /plugins/search:
+    get:
+      operationId: searchPlugins
+      tags: [plugins]
+      summary: Search plugins from Modrinth and Hangar
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+            default: optimization
+        - name: source
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [modrinth, hangar, all]
+            default: modrinth
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Plugin search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PluginSearchResult"
+
+  /plugins/featured:
+    get:
+      operationId: getFeaturedPlugins
+      tags: [plugins]
+      summary: Get featured plugins from Modrinth and Hangar
+      responses:
+        "200":
+          description: Featured plugins
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PluginSearchResult"
+
   /mods/search:
     get:
       operationId: searchMods
@@ -659,9 +709,12 @@ components:
           type: string
         source:
           type: string
-          enum: [curseforge, modrinth, upload]
+          enum: [curseforge, modrinth, upload, hangar]
         iconUrl:
           type: ["string", "null"]
+        category:
+          type: string
+          enum: [mod, plugin]
         installedAt:
           type: string
       required:
@@ -672,6 +725,7 @@ components:
         - modVersion
         - source
         - iconUrl
+        - category
         - installedAt
 
     ModInstallInput:
@@ -685,14 +739,65 @@ components:
           type: string
         source:
           type: string
-          enum: [curseforge, modrinth, upload]
+          enum: [curseforge, modrinth, upload, hangar]
         iconUrl:
           type: string
+        category:
+          type: string
+          enum: [mod, plugin]
       required:
         - modId
         - modName
         - modVersion
         - source
+
+    PluginSearchResult:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        author:
+          type: string
+        iconUrl:
+          type: ["string", "null"]
+        downloadCount:
+          type: integer
+        source:
+          type: string
+          enum: [modrinth, hangar]
+        latestVersion:
+          type: ["string", "null"]
+        loaders:
+          type: array
+          items:
+            type: string
+        gameVersions:
+          type: array
+          items:
+            type: string
+        categories:
+          type: array
+          items:
+            type: string
+        websiteUrl:
+          type: ["string", "null"]
+      required:
+        - id
+        - name
+        - description
+        - author
+        - iconUrl
+        - downloadCount
+        - source
+        - latestVersion
+        - loaders
+        - gameVersions
+        - categories
+        - websiteUrl
 
     ModSearchResult:
       type: object

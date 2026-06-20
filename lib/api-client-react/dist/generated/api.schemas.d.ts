@@ -110,6 +110,12 @@ export declare const InstalledModSource: {
     readonly curseforge: "curseforge";
     readonly modrinth: "modrinth";
     readonly upload: "upload";
+    readonly hangar: "hangar";
+};
+export type InstalledModCategory = typeof InstalledModCategory[keyof typeof InstalledModCategory];
+export declare const InstalledModCategory: {
+    readonly mod: "mod";
+    readonly plugin: "plugin";
 };
 export interface InstalledMod {
     id: number;
@@ -120,6 +126,7 @@ export interface InstalledMod {
     source: InstalledModSource;
     /** @nullable */
     iconUrl: string | null;
+    category: InstalledModCategory;
     installedAt: string;
 }
 export type ModInstallInputSource = typeof ModInstallInputSource[keyof typeof ModInstallInputSource];
@@ -127,6 +134,12 @@ export declare const ModInstallInputSource: {
     readonly curseforge: "curseforge";
     readonly modrinth: "modrinth";
     readonly upload: "upload";
+    readonly hangar: "hangar";
+};
+export type ModInstallInputCategory = typeof ModInstallInputCategory[keyof typeof ModInstallInputCategory];
+export declare const ModInstallInputCategory: {
+    readonly mod: "mod";
+    readonly plugin: "plugin";
 };
 export interface ModInstallInput {
     modId: string;
@@ -134,6 +147,29 @@ export interface ModInstallInput {
     modVersion: string;
     source: ModInstallInputSource;
     iconUrl?: string;
+    category?: ModInstallInputCategory;
+}
+export type PluginSearchResultSource = typeof PluginSearchResultSource[keyof typeof PluginSearchResultSource];
+export declare const PluginSearchResultSource: {
+    readonly modrinth: "modrinth";
+    readonly hangar: "hangar";
+};
+export interface PluginSearchResult {
+    id: string;
+    name: string;
+    description: string;
+    author: string;
+    /** @nullable */
+    iconUrl: string | null;
+    downloadCount: number;
+    source: PluginSearchResultSource;
+    /** @nullable */
+    latestVersion: string | null;
+    loaders: string[];
+    gameVersions: string[];
+    categories: string[];
+    /** @nullable */
+    websiteUrl: string | null;
 }
 export type ModSearchResultSource = typeof ModSearchResultSource[keyof typeof ModSearchResultSource];
 export declare const ModSearchResultSource: {
@@ -220,6 +256,17 @@ export interface SlugCheck {
     slug: string;
     available: boolean;
 }
+export type SearchPluginsParams = {
+    query?: string;
+    source?: SearchPluginsSource;
+    limit?: number;
+};
+export type SearchPluginsSource = typeof SearchPluginsSource[keyof typeof SearchPluginsSource];
+export declare const SearchPluginsSource: {
+    readonly modrinth: "modrinth";
+    readonly hangar: "hangar";
+    readonly all: "all";
+};
 export type SearchModsParams = {
     query: string;
     source?: SearchModsSource;
