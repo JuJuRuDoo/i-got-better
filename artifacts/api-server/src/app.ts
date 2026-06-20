@@ -38,7 +38,7 @@ const staticDir = path.resolve(import.meta.dirname, "../../mchost/dist/public");
 if (process.env.NODE_ENV === "production" && fs.existsSync(staticDir)) {
   app.use(express.static(staticDir));
   // SPA fallback — serve index.html for any non-API route
-  app.get("*", (_req, res) => {
+  app.get("/{*wildcard}", (_req, res) => {
     res.sendFile(path.join(staticDir, "index.html"));
   });
   logger.info({ staticDir }, "Serving frontend static files");
